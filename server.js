@@ -27,6 +27,10 @@ app.post('/generate-report', async (req, res) => {
         outputFilename 
     } = req.body;
 
+    if (!outputFilename) {
+        return res.status(400).json({ success: false, message: "Output filename is required." });
+    }
+
     const downloadsPath = path.join(os.homedir(), 'Downloads');
     const finalOutputPath = path.join(downloadsPath, outputFilename.endsWith('.csv') ? outputFilename : `${outputFilename}.csv`);
 
@@ -79,7 +83,7 @@ app.post('/generate-report', async (req, res) => {
         csv += `Employee,${employeeName}\n`;
         csv += `Employee,${employeeId}\n`;
         csv += `Coverage Date,"${formatDate(sortedDates[0])} - ${formatDate(sortedDates[sortedDates.length - 1])}"\n`;
-        csv += `Date,Task,,Deadline,Completion Date,Status,Remarks,Project,Supervisor,Github Link\n`;
+        csv += `Date,Task,Deadline,Completion Date,Status,Remarks,Project,Supervisor,Github Link\n`;
 
         sortedDates.forEach(dStr => {
             const dFmt = formatDate(dStr);
@@ -88,8 +92,8 @@ app.post('/generate-report', async (req, res) => {
                 // Determine if we should show the date (only on the first commit of the day)
                 const dateToShow = index === 0 ? `"${dFmt}"` : "";
                 
-                // Row 1 of commit
-                csv += `${dateToShow},"${commit.subject.replace(/"/g, '""')}",,"${dFmt}","${dFmt}","Done","","${p1}","${s1}","${commit.link}"\n`;
+                // Row 1 of commit (Removed extra comma before Deadline)
+                csv += `${dateToShow},"${commit.subject.replace(/"/g, '""')}","${dFmt}","${dFmt}","Done","","${p1}","${s1}","${commit.link}"\n`;
                 // Row 2 of commit (Splits)
                 csv += `,,,,,,,"${p2}","${s2}",""\n`;
             });
@@ -120,6 +124,12 @@ app.post('/clone-repo', (req, res) => {
         }
         res.json({ success: true, message: "Repository cloned successfully!", output: stdout });
     });
+});
+
+// Global error handler to ensure JSON is always returned
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ success: false, message: "An internal server error occurred.", error: err.message });
 });
 
 app.listen(PORT, () => {
