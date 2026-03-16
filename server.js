@@ -83,24 +83,14 @@ app.post('/generate-report', async (req, res) => {
 
         sortedDates.forEach(dStr => {
             const dFmt = formatDate(dStr);
-            const dateObj = new Date(dStr);
-            const dayOfWeek = dateObj.getDay(); 
 
-            // Row 1 of Day
-            csv += `"${dFmt}","Code Review on previous development",,"${dFmt}","${dFmt}","Done","","${p1}","${s1}",""\n`;
-            
-            // Row 2: DB Review
-            csv += `,"Database review for ${projectName}",,"${dFmt}","${dFmt}","Done","DATABASE","${p1}","${s1}",""\n`;
-
-            if (dayOfWeek === 4) { // Thu
-                csv += `,"Transco team weekly alignment meeting",,"${dFmt}","${dFmt}","Done","","${p1}","${s1}",""\n`;
-            }
-            if (dayOfWeek === 5) { // Fri
-                csv += `,"Transco Client weekly alignment meeting",,"${dFmt}","${dFmt}","Done","","${p1}","${s1}",""\n`;
-            }
-
-            days[dStr].forEach(commit => {
-                csv += `,"${commit.subject.replace(/"/g, '""')}",,"${dFmt}","${dFmt}","Done","","${p1}","${s1}","${commit.link}"\n`;
+            days[dStr].forEach((commit, index) => {
+                // Determine if we should show the date (only on the first commit of the day)
+                const dateToShow = index === 0 ? `"${dFmt}"` : "";
+                
+                // Row 1 of commit
+                csv += `${dateToShow},"${commit.subject.replace(/"/g, '""')}",,"${dFmt}","${dFmt}","Done","","${p1}","${s1}","${commit.link}"\n`;
+                // Row 2 of commit (Splits)
                 csv += `,,,,,,,"${p2}","${s2}",""\n`;
             });
         });
