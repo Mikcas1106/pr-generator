@@ -32,7 +32,6 @@ function saveState() {
         author: document.getElementById('author').value,
         since: document.getElementById('since').value,
         until: document.getElementById('until').value,
-        outputFilename: document.getElementById('outputFilename').value,
         projects: projects
     };
     localStorage.setItem('pr_generator_state', JSON.stringify(state));
@@ -48,7 +47,6 @@ function loadState() {
     document.getElementById('author').value = state.author || '';
     document.getElementById('since').value = state.since || '';
     document.getElementById('until').value = state.until || '';
-    document.getElementById('outputFilename').value = state.outputFilename || '';
 
     if (state.projects && state.projects.length > 0) {
         const container = document.getElementById('projects-container');
@@ -62,9 +60,8 @@ function loadState() {
 function updateDefaultFilename() {
     const name = document.getElementById('employeeName').value.trim();
     const untilDate = document.getElementById('until').value;
-    const filenameInput = document.getElementById('outputFilename');
 
-    if (!name && !untilDate) return;
+    if (!name && !untilDate) return 'report';
 
     let formattedName = name;
     if (name.includes(' ') && !name.includes(',')) {
@@ -80,7 +77,7 @@ function updateDefaultFilename() {
         datePart = ` - ${m}.${d}`;
     }
 
-    filenameInput.value = `PR - ${formattedName}${datePart}`;
+    return `PR - ${formattedName}${datePart}`;
 }
 
 function addProjectEntry(data = { repoPath: '', projectName: '', supervisorName: '', repoPlatform: 'bitbucket', repoWorkspace: '', repoName: '' }) {
@@ -139,13 +136,8 @@ document.getElementById('add-project').addEventListener('click', () => {
 });
 
 // Auto-save global inputs
-['employeeName', 'employeeId', 'author', 'since', 'until', 'outputFilename'].forEach(id => {
-    document.getElementById(id).addEventListener('input', () => {
-        saveState();
-        if (id === 'employeeName' || id === 'until') {
-            updateDefaultFilename();
-        }
-    });
+['employeeName', 'employeeId', 'author', 'since', 'until'].forEach(id => {
+    document.getElementById(id).addEventListener('input', saveState);
 });
 
 // Load state on start
@@ -186,7 +178,7 @@ document.getElementById('report-form').addEventListener('submit', async (e) => {
         author: document.getElementById('author').value,
         since: document.getElementById('since').value,
         until: document.getElementById('until').value,
-        outputFilename: document.getElementById('outputFilename').value,
+        outputFilename: updateDefaultFilename(),
         projects: projects
     };
 
