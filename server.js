@@ -7,6 +7,7 @@ const fs = require('fs');
 const os = require('os');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const ExcelJS = require('exceljs');
 
 const app = express();
 const PORT = 3001;
@@ -35,7 +36,7 @@ app.post('/generate-report', async (req, res) => {
     }
 
     const downloadsPath = path.join(os.homedir(), 'Downloads');
-    const finalOutputPath = path.join(downloadsPath, outputFilename.endsWith('.csv') ? outputFilename : `${outputFilename}.csv`);
+    const finalOutputPath = path.join(downloadsPath, outputFilename.endsWith('.xlsx') ? outputFilename : `${outputFilename}.xlsx`);
 
     const authorFilter = author ? `--author="${author}"` : '';
     const sinceFilter = since ? `--since="${since}"` : '';
@@ -49,7 +50,7 @@ app.post('/generate-report', async (req, res) => {
 
     const cmd = `git log ${authorFilter} --no-merges --pretty=format:"%ad|%s|%H" --date=short ${sinceFilter} ${untilFilter}`;
 
-    const allCommitsByDate = {}; // { "date": [ { subject, link, p1, p2, s1, s2 }, ... ] }
+    const allCommitsByDate = {}; 
 
     try {
         for (const project of projects) {
@@ -92,23 +93,80 @@ app.post('/generate-report', async (req, res) => {
             return `${parseInt(m)}/${parseInt(d)}/${y}`;
         };
 
-        let csv = `,,,,E,TLC PROGRESS REPORT\n`;
-        csv += `Employee,${employeeName}\n`;
-        csv += `Employee,${employeeId}\n`;
-        csv += `Coverage Date,"${formatDate(sortedDates[0])} - ${formatDate(sortedDates[sortedDates.length - 1])}"\n`;
-        csv += `Date,Task,Deadline,Completion Date,Status,Remarks,Project,Supervisor,Github Link\n`;
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Progress Report');
 
+        // Header Styling
+        sheet.addRow(['', '', '', '', 'E', 'TLC PROGRESS REPORT']);
+        sheet.getRow(1).font = { bold: true, size: 14 };
+
+        sheet.addRow(['Employee', employeeName]);
+        sheet.addRow(['Employee ID', employeeId]);
+        sheet.addRow(['Coverage Date', `${formatDate(sortedDates[0])} - ${formatDate(sortedDates[sortedDates.length - 1])}`]);
+        sheet.addRow([]); // Spacer
+
+        // Main Table Headers
+        const headerRow = sheet.addRow([
+            'Date', 'Task', 'Deadline', 'Completion Date', 'Status', 'Remarks', 'Project', 'Supervisor', 'Git Link'
+        ]);
+        headerRow.font = { bold: true };
+        headerRow.eachCell((cell) => {
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFE0E0E0' }
+            };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+        });
+
+        // Add Commit Data
         sortedDates.forEach(dStr => {
             const dFmt = formatDate(dStr);
-
             allCommitsByDate[dStr].forEach((commit, index) => {
-                const dateToShow = index === 0 ? `"${dFmt}"` : "";
-                csv += `${dateToShow},"${commit.subject.replace(/"/g, '""')}","${dFmt}","${dFmt}","Done","","${commit.projectName}","${commit.supervisorName}","${commit.link}"\n`;
+                const dateToShow = index === 0 ? dFmt : "";
+                const row = sheet.addRow([
+                    dateToShow,
+                    commit.subject,
+                    dFmt,
+                    dFmt,
+                    'Done',
+                    '',
+                    commit.projectName,
+                    commit.supervisorName,
+                    commit.link
+                ]);
+                
+                // Add borders to cells
+                row.eachCell((cell) => {
+                    cell.border = {
+                        top: { style: 'thin' },
+                        left: { style: 'thin' },
+                        bottom: { style: 'thin' },
+                        right: { style: 'thin' }
+                    };
+                });
             });
         });
 
-        fs.writeFileSync(finalOutputPath, csv, 'utf-8');
-        res.json({ success: true, message: `Report generated for ${projects.length} project(s)!`, filePath: finalOutputPath });
+        // Auto-adjust column widths
+        sheet.columns.forEach(column => {
+            let maxColumnLength = 0;
+            column.eachCell({ includeEmpty: true }, (cell) => {
+                const columnLength = cell.value ? cell.value.toString().length : 10;
+                if (columnLength > maxColumnLength) {
+                    maxColumnLength = columnLength;
+                }
+            });
+            column.width = maxColumnLength < 12 ? 12 : maxColumnLength + 2;
+        });
+
+        await workbook.xlsx.writeFile(finalOutputPath);
+        res.json({ success: true, message: `Excel report generated successfully!`, filePath: finalOutputPath });
 
     } catch (error) {
         console.error(error);
@@ -140,7 +198,6 @@ app.post('/clone-repo', (req, res) => {
     });
 });
 
-// Global error handler to ensure JSON is always returned
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ success: false, message: "An internal server error occurred.", error: err.message });
