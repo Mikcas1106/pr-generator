@@ -15,22 +15,54 @@ function log(msg, type = 'info') {
     if (type === 'error') statusLog.classList.add('status-error');
 }
 
+// Multi-Project UI logic
+document.getElementById('add-project').addEventListener('click', () => {
+    const container = document.getElementById('projects-container');
+    const newEntry = document.createElement('div');
+    newEntry.className = 'project-entry glass';
+    newEntry.innerHTML = `
+        <button type="button" class="remove-project">×</button>
+        <div class="input-group full-width">
+            <label>Local Project Folder Directory</label>
+            <input type="text" class="repoPath" placeholder="C:\\path\\to\\your\\repository">
+        </div>
+        <div class="input-group">
+            <label>Project Name</label>
+            <input type="text" class="projectName" placeholder="Project Name">
+        </div>
+        <div class="input-group">
+            <label>Supervisor Name</label>
+            <input type="text" class="supervisorName" placeholder="Supervisor Name">
+        </div>
+    `;
+    container.appendChild(newEntry);
+
+    newEntry.querySelector('.remove-project').addEventListener('click', () => {
+        newEntry.remove();
+    });
+});
+
 // Generate Report Form
 document.getElementById('report-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     log("Processing git logs, generating report...", "info");
 
+    const projectEntries = document.querySelectorAll('.project-entry');
+    const projects = Array.from(projectEntries).map(entry => ({
+        repoPath: entry.querySelector('.repoPath').value,
+        projectName: entry.querySelector('.projectName').value,
+        supervisorName: entry.querySelector('.supervisorName').value
+    }));
+
     const data = {
-        repoPath: document.getElementById('repoPath').value,
         employeeName: document.getElementById('employeeName').value,
         employeeId: document.getElementById('employeeId').value,
         author: document.getElementById('author').value,
         since: document.getElementById('since').value,
         until: document.getElementById('until').value,
-        projectName: document.getElementById('projectName').value,
-        supervisorName: document.getElementById('supervisorName').value,
         baseUrl: document.getElementById('baseUrl').value,
-        outputFilename: document.getElementById('outputFilename').value
+        outputFilename: document.getElementById('outputFilename').value,
+        projects: projects
     };
 
     try {

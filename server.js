@@ -1,5 +1,7 @@
 const express = require('express');
 const { exec } = require('child_process');
+const util = require('util');
+const execPromise = util.promisify(exec);
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -15,28 +17,26 @@ app.use(express.static('public'));
 
 app.post('/generate-report', async (req, res) => {
     const { 
-        repoPath, 
-        author, 
         employeeName,
         employeeId,
         since, 
         until, 
-        projectName, 
-        supervisorName, 
+        author,
         baseUrl,
-        outputFilename 
+        outputFilename,
+        projects 
     } = req.body;
 
     if (!outputFilename) {
         return res.status(400).json({ success: false, message: "Output filename is required." });
     }
 
+    if (!projects || !Array.isArray(projects) || projects.length === 0) {
+        return res.status(400).json({ success: false, message: "At least one project is required." });
+    }
+
     const downloadsPath = path.join(os.homedir(), 'Downloads');
     const finalOutputPath = path.join(downloadsPath, outputFilename.endsWith('.csv') ? outputFilename : `${outputFilename}.csv`);
-
-    if (!repoPath || !fs.existsSync(repoPath)) {
-        return res.status(400).json({ success: false, message: "Invalid repository path." });
-    }
 
     const authorFilter = author ? `--author="${author}"` : '';
     const sinceFilter = since ? `--since="${since}"` : '';
@@ -44,40 +44,55 @@ app.post('/generate-report', async (req, res) => {
 
     const cmd = `git log ${authorFilter} --no-merges --pretty=format:"%ad|%s|%H" --date=short ${sinceFilter} ${untilFilter}`;
 
-    exec(cmd, { cwd: repoPath }, (error, stdout, stderr) => {
-        if (error) {
-            console.error(error);
-            return res.status(500).json({ success: false, message: "Git log command failed.", error: stderr });
+    const allCommitsByDate = {}; // { "date": [ { subject, link, p1, p2, s1, s2 }, ... ] }
+
+    try {
+        for (const project of projects) {
+            const { repoPath, projectName, supervisorName } = project;
+
+            if (!repoPath || !fs.existsSync(repoPath)) {
+                console.warn(`Skipping invalid path: ${repoPath}`);
+                continue;
+            }
+
+            const { stdout } = await execPromise(cmd, { cwd: repoPath });
+            const lines = stdout.trim().split('\n');
+
+            if (!lines || (lines.length === 1 && lines[0] === '')) continue;
+
+            const projParts = projectName.split(' ');
+            const p1 = projParts[0] || "";
+            const p2 = projParts.slice(1).join(' ') || "";
+
+            const supParts = supervisorName.split(' ');
+            const s1 = supParts[0] || "";
+            const s2 = supParts.slice(1).join(' ') || "";
+
+            lines.forEach(line => {
+                const parts = line.split('|');
+                if (parts.length < 3) return;
+                const [dateStr, subject, hashVal] = parts;
+                
+                if (!allCommitsByDate[dateStr]) allCommitsByDate[dateStr] = [];
+                
+                allCommitsByDate[dateStr].push({
+                    subject,
+                    link: `${baseUrl}${hashVal}`,
+                    p1, p2, s1, s2
+                });
+            });
         }
 
-        const lines = stdout.trim().split('\n');
-        if (!lines || (lines.length === 1 && lines[0] === '')) {
-            return res.status(404).json({ success: false, message: "No commits found for the specified period." });
-        }
-
-        const days = {};
-        lines.forEach(line => {
-            const parts = line.split('|');
-            if (parts.length < 3) return;
-            const [dateStr, subject, hashVal] = parts;
-            if (!days[dateStr]) days[dateStr] = [];
-            days[dateStr].push({ subject, link: `${baseUrl}${hashVal}` });
-        });
-
-        const sortedDates = Object.keys(days).sort();
+        const sortedDates = Object.keys(allCommitsByDate).sort();
         
+        if (sortedDates.length === 0) {
+            return res.status(404).json({ success: false, message: "No commits found for the specified period across any projects." });
+        }
+
         const formatDate = (dateStr) => {
             const [y, m, d] = dateStr.split('-');
             return `${parseInt(m)}/${parseInt(d)}/${y}`;
         };
-
-        const projParts = projectName.split(' ');
-        const p1 = projParts[0] || "";
-        const p2 = projParts.slice(1).join(' ') || "";
-
-        const supParts = supervisorName.split(' ');
-        const s1 = supParts[0] || "";
-        const s2 = supParts.slice(1).join(' ') || "";
 
         let csv = `,,,,E,TLC PROGRESS REPORT\n`;
         csv += `Employee,${employeeName}\n`;
@@ -88,24 +103,20 @@ app.post('/generate-report', async (req, res) => {
         sortedDates.forEach(dStr => {
             const dFmt = formatDate(dStr);
 
-            days[dStr].forEach((commit, index) => {
-                // Determine if we should show the date (only on the first commit of the day)
+            allCommitsByDate[dStr].forEach((commit, index) => {
                 const dateToShow = index === 0 ? `"${dFmt}"` : "";
-                
-                // Row 1 of commit (Removed extra comma before Deadline)
-                csv += `${dateToShow},"${commit.subject.replace(/"/g, '""')}","${dFmt}","${dFmt}","Done","","${p1}","${s1}","${commit.link}"\n`;
-                // Row 2 of commit (Splits)
-                csv += `,,,,,,,"${p2}","${s2}",""\n`;
+                csv += `${dateToShow},"${commit.subject.replace(/"/g, '""')}","${dFmt}","${dFmt}","Done","","${commit.p1}","${commit.s1}","${commit.link}"\n`;
+                csv += `,,,,,,,"${commit.p2}","${commit.s2}",""\n`;
             });
         });
 
-        try {
-            fs.writeFileSync(finalOutputPath, csv, 'utf-8');
-            res.json({ success: true, message: `Report generated!`, filePath: finalOutputPath });
-        } catch (e) {
-            res.status(500).json({ success: false, message: "Failed to write CSV.", error: e.message });
-        }
-    });
+        fs.writeFileSync(finalOutputPath, csv, 'utf-8');
+        res.json({ success: true, message: `Report generated for ${projects.length} project(s)!`, filePath: finalOutputPath });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Error generating report.", error: error.message });
+    }
 });
 
 app.post('/clone-repo', (req, res) => {

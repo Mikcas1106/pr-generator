@@ -102,10 +102,6 @@
                 <!-- Generate Tab -->
                 <div id="tab-generate" class="tab-content active">
                     <form id="report-form" class="form-grid">
-                        <div class="input-group full-width">
-                            <label>Local Project Folder Directory</label>
-                            <input type="text" id="repoPath" placeholder="C:\path\to\your\repository">
-                        </div>
                         <div class="input-group">
                             <label>Employee Name</label>
                             <input type="text" id="employeeName" placeholder="Full Name">
@@ -130,13 +126,26 @@
                             <label>End Date</label>
                             <input type="date" id="until">
                         </div>
-                        <div class="input-group">
-                            <label>Project Name</label>
-                            <input type="text" id="projectName" placeholder="Project Name">
+                        <!-- Multi-Project Container -->
+                        <div id="projects-container" class="full-width">
+                            <div class="project-entry glass">
+                                <div class="input-group full-width">
+                                    <label>Local Project Folder Directory</label>
+                                    <input type="text" class="repoPath" placeholder="C:\path\to\your\repository">
+                                </div>
+                                <div class="input-group">
+                                    <label>Project Name</label>
+                                    <input type="text" class="projectName" placeholder="Project Name">
+                                </div>
+                                <div class="input-group">
+                                    <label>Supervisor Name</label>
+                                    <input type="text" class="supervisorName" placeholder="Supervisor Name">
+                                </div>
+                            </div>
                         </div>
-                        <div class="input-group">
-                            <label>Supervisor Name</label>
-                            <input type="text" id="supervisorName" placeholder="Supervisor Name">
+
+                        <div class="full-width add-project-btn-container">
+                            <button type="button" id="add-project" class="btn-secondary">+ Add Another Project</button>
                         </div>
                         <div class="input-group full-width">
                             <label>Output Filename</label>
