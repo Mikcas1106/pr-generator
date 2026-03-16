@@ -96,35 +96,23 @@ app.post('/generate-report', async (req, res) => {
         const workbook = new ExcelJS.Workbook();
         const sheet = workbook.addWorksheet('Progress Report');
 
-        // Header Styling
         sheet.addRow(['', '', '', '', 'E', 'TLC PROGRESS REPORT']);
         sheet.getRow(1).font = { bold: true, size: 14 };
 
         sheet.addRow(['Employee', employeeName]);
         sheet.addRow(['Employee ID', employeeId]);
         sheet.addRow(['Coverage Date', `${formatDate(sortedDates[0])} - ${formatDate(sortedDates[sortedDates.length - 1])}`]);
-        sheet.addRow([]); // Spacer
+        sheet.addRow([]);
 
-        // Main Table Headers
         const headerRow = sheet.addRow([
             'Date', 'Task', 'Deadline', 'Completion Date', 'Status', 'Remarks', 'Project', 'Supervisor', 'Git Link'
         ]);
         headerRow.font = { bold: true };
         headerRow.eachCell((cell) => {
-            cell.fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { argb: 'FFE0E0E0' }
-            };
-            cell.border = {
-                top: { style: 'thin' },
-                left: { style: 'thin' },
-                bottom: { style: 'thin' },
-                right: { style: 'thin' }
-            };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
         });
 
-        // Add Commit Data
         sortedDates.forEach(dStr => {
             const dFmt = formatDate(dStr);
             allCommitsByDate[dStr].forEach((commit, index) => {
@@ -141,32 +129,22 @@ app.post('/generate-report', async (req, res) => {
                     commit.link
                 ]);
                 
-                // Add borders to cells
                 row.eachCell((cell) => {
-                    cell.border = {
-                        top: { style: 'thin' },
-                        left: { style: 'thin' },
-                        bottom: { style: 'thin' },
-                        right: { style: 'thin' }
-                    };
+                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
                 });
             });
         });
 
-        // Column width and Alignment
         sheet.columns.forEach((column, i) => {
-            const colIndex = i + 1; // 1-based index
-            
-            if (colIndex === 2) { // Column B (Task)
-                column.width = 15; // Approx 100-110px
+            const colIndex = i + 1;
+            if (colIndex === 2) { 
+                column.width = 40; 
                 column.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
             } else {
                 let maxColumnLength = 0;
                 column.eachCell({ includeEmpty: true }, (cell) => {
                     const columnLength = cell.value ? cell.value.toString().length : 10;
-                    if (columnLength > maxColumnLength) {
-                        maxColumnLength = columnLength;
-                    }
+                    if (columnLength > maxColumnLength) maxColumnLength = columnLength;
                 });
                 column.width = maxColumnLength < 12 ? 12 : maxColumnLength + 2;
                 column.alignment = { vertical: 'top', horizontal: 'left' };
@@ -191,17 +169,11 @@ app.post('/generate-report', async (req, res) => {
 app.post('/clone-repo', (req, res) => {
     const { repoUrl, targetDir } = req.body;
     if (!repoUrl) return res.status(400).json({ success: false, message: "Repo URL is required." });
-
     const parentDir = path.dirname(targetDir);
-    if (!fs.existsSync(parentDir)) {
-        fs.mkdirSync(parentDir, { recursive: true });
-    }
-
+    if (!fs.existsSync(parentDir)) fs.mkdirSync(parentDir, { recursive: true });
     const cmd = `git clone "${repoUrl}" "${targetDir}"`;
     exec(cmd, { cwd: parentDir }, (error, stdout, stderr) => {
-        if (error) {
-            return res.status(500).json({ success: false, message: "Clone failed.", error: stderr });
-        }
+        if (error) return res.status(500).json({ success: false, message: "Clone failed.", error: stderr });
         res.json({ success: true, message: "Repository cloned successfully!", output: stdout });
     });
 });
@@ -211,6 +183,4 @@ app.use((err, req, res, next) => {
     res.status(500).json({ success: false, message: "An internal server error occurred.", error: err.message });
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
