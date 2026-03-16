@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Report Generator | Premium Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="background-effects">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <div class="container">
+        <header>
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2Z"
+                        stroke="currentColor" stroke-width="2" />
+                    <path
+                        d="M15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z"
+                        fill="currentColor" />
+                </svg>
+                <span>GitReport <span>PRO</span></span>
+            </div>
+            <h1>Generate CSV Reports in Seconds</h1>
+        </header>
+
+        <main>
+            <section class="card glass">
+                <div class="tabs">
+                    <button class="active" onclick="showTab('generate')">Generate Report</button>
+                    <button onclick="showTab('clone')">Clone Repo</button>
+                    <button onclick="showTab('manual')">Manual</button>
+                </div>
+
+                <!-- Generate Tab -->
+                <div id="tab-generate" class="tab-content active">
+                    <form id="report-form" class="form-grid">
+                        <div class="input-group full-width">
+                            <label>Repository Folder Path</label>
+                            <input type="text" id="repoPath" placeholder="C:\Users\Admin\Desktop\ibppms"
+                                value="C:\Users\Admin\Desktop\ibppms">
+                        </div>
+                        <div class="input-group">
+                            <label>Employee Name</label>
+                            <input type="text" id="employeeName" value="Kim Castor">
+                        </div>
+                        <div class="input-group">
+                            <label>Employee ID</label>
+                            <input type="text" id="employeeId" value="T-22-0043">
+                        </div>
+                        <div class="input-group">
+                            <label>Author Email</label>
+                            <input type="text" id="author" placeholder="kim.castor@mobilemoney.ph"
+                                value="kim.castor@mobilemoney.ph">
+                        </div>
+                        <div class="input-group">
+                            <label>Commit Base URL</label>
+                            <input type="text" id="baseUrl" value="https://bitbucket.org/telcomliveph/ibppms/commits/">
+                        </div>
+                        <div class="input-group">
+                            <label>Start Date</label>
+                            <input type="date" id="since" value="2026-02-23">
+                        </div>
+                        <div class="input-group">
+                            <label>End Date</label>
+                            <input type="date" id="until" value="2026-02-28">
+                        </div>
+                        <div class="input-group">
+                            <label>Project Name</label>
+                            <input type="text" id="projectName" value="TRANSCO IBPPMS">
+                        </div>
+                        <div class="input-group">
+                            <label>Supervisor Name</label>
+                            <input type="text" id="supervisorName" value="Joyce Digma">
+                        </div>
+                        <div class="input-group full-width">
+                            <label>Output CSV Path</label>
+                            <input type="text" id="outputPath"
+                                value="C:\Users\Admin\Downloads\kim-commits-formatted.csv">
+                        </div>
+
+                        <button type="submit" class="btn-primary animate-shine">Generate Now</button>
+                    </form>
+                </div>
+
+                <!-- Clone Tab -->
+                <div id="tab-clone" class="tab-content">
+                    <form id="clone-form" class="form-grid">
+                        <div class="input-group full-width">
+                            <label>Repository Remote URL</label>
+                            <input type="text" id="repoUrl" placeholder="https://bitbucket.org/xxx.git">
+                        </div>
+                        <div class="input-group full-width">
+                            <label>Target Folder Path</label>
+                            <input type="text" id="targetDir" placeholder="C:\Users\Admin\Desktop\repo-name">
+                        </div>
+                        <button type="submit" class="btn-primary animate-shine">Clone Repository</button>
+                    </form>
+                </div>
+
+                <div id="status-log" class="status-log">
+                    Ready...
+     
