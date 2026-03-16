@@ -96,8 +96,12 @@ app.post('/generate-report', async (req, res) => {
         const workbook = new ExcelJS.Workbook();
         const sheet = workbook.addWorksheet('Progress Report');
 
-        sheet.addRow(['', '', '', '', 'E', 'TLC PROGRESS REPORT']);
-        sheet.getRow(1).font = { bold: true, size: 14 };
+        // Header Title: Merge A1:I1 and Center
+        sheet.mergeCells('A1:I1');
+        const titleCell = sheet.getCell('A1');
+        titleCell.value = 'TLC PROGRESS REPORT';
+        titleCell.font = { bold: true, size: 14 };
+        titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
         sheet.addRow(['Employee', employeeName]);
         sheet.addRow(['Employee ID', employeeId]);
