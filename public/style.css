@@ -123,7 +123,7 @@ h1 {
 .card {
     background: var(--card-bg);
     border-radius: 20px;
-    padding: 2rem;
+    padding: 2.5rem;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
 }
 
@@ -180,7 +180,7 @@ h1 {
 .split-layout {
     display: grid;
     grid-template-columns: 1fr 1.2fr;
-    gap: 2rem;
+    gap: 3rem;
     align-items: start;
 }
 
@@ -248,10 +248,11 @@ input:focus {
 }
 
 .input-section {
-    padding: 1.5rem;
-    border-radius: 12px;
+    padding: 2rem;
+    border-radius: 16px;
     margin-bottom: 2rem;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .input-section h3 {
@@ -273,14 +274,15 @@ input:focus {
 }
 
 .project-entry {
-    background: rgba(255, 255, 255, 0.03);
-    padding: 1.5rem;
-    border-radius: 12px;
-    margin-bottom: 1.5rem;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 2rem;
+    border-radius: 16px;
+    margin-bottom: 2rem;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
     position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .project-entry .full-width {

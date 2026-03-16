@@ -79,7 +79,7 @@ function addProjectEntry(data = { repoPath: '', projectName: '', supervisorName:
         </div>
         <div class="input-group full-width">
             <label>Commit Base URL</label>
-            <input type="text" class="baseUrl" placeholder="https://bitbucket.org/xxx/commits/" value="${data.baseUrl}">
+            <input type="text" class="baseUrl" placeholder="https://bitbucket.org/xxx/commits/" value="${data.baseUrl || ''}">
         </div>
     `;
     container.appendChild(newEntry);
