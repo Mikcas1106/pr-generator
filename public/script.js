@@ -29,7 +29,6 @@ function saveState() {
         author: document.getElementById('author').value,
         since: document.getElementById('since').value,
         until: document.getElementById('until').value,
-        baseUrl: document.getElementById('baseUrl').value,
         outputFilename: document.getElementById('outputFilename').value,
         projects: projects
     };
@@ -46,7 +45,6 @@ function loadState() {
     document.getElementById('author').value = state.author || '';
     document.getElementById('since').value = state.since || '';
     document.getElementById('until').value = state.until || '';
-    document.getElementById('baseUrl').value = state.baseUrl || '';
     document.getElementById('outputFilename').value = state.outputFilename || '';
 
     if (state.projects && state.projects.length > 0) {
@@ -58,7 +56,7 @@ function loadState() {
     }
 }
 
-function addProjectEntry(data = { repoPath: '', projectName: '', supervisorName: '' }) {
+function addProjectEntry(data = { repoPath: '', projectName: '', supervisorName: '', baseUrl: '' }) {
     const container = document.getElementById('projects-container');
     const newEntry = document.createElement('div');
     newEntry.className = 'project-entry glass';
@@ -75,6 +73,10 @@ function addProjectEntry(data = { repoPath: '', projectName: '', supervisorName:
         <div class="input-group">
             <label>Supervisor Name</label>
             <input type="text" class="supervisorName" placeholder="Supervisor Name" value="${data.supervisorName}">
+        </div>
+        <div class="input-group full-width">
+            <label>Commit Base URL</label>
+            <input type="text" class="baseUrl" placeholder="https://bitbucket.org/xxx/commits/" value="${data.baseUrl}">
         </div>
     `;
     container.appendChild(newEntry);
@@ -96,7 +98,7 @@ document.getElementById('add-project').addEventListener('click', () => {
 });
 
 // Auto-save global inputs
-['employeeName', 'employeeId', 'author', 'since', 'until', 'baseUrl', 'outputFilename'].forEach(id => {
+['employeeName', 'employeeId', 'author', 'since', 'until', 'outputFilename'].forEach(id => {
     document.getElementById(id).addEventListener('input', saveState);
 });
 
@@ -112,7 +114,8 @@ document.getElementById('report-form').addEventListener('submit', async (e) => {
     const projects = Array.from(projectEntries).map(entry => ({
         repoPath: entry.querySelector('.repoPath').value,
         projectName: entry.querySelector('.projectName').value,
-        supervisorName: entry.querySelector('.supervisorName').value
+        supervisorName: entry.querySelector('.supervisorName').value,
+        baseUrl: entry.querySelector('.baseUrl').value
     }));
 
     const data = {
@@ -121,7 +124,6 @@ document.getElementById('report-form').addEventListener('submit', async (e) => {
         author: document.getElementById('author').value,
         since: document.getElementById('since').value,
         until: document.getElementById('until').value,
-        baseUrl: document.getElementById('baseUrl').value,
         outputFilename: document.getElementById('outputFilename').value,
         projects: projects
     };

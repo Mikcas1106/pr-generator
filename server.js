@@ -22,7 +22,6 @@ app.post('/generate-report', async (req, res) => {
         since, 
         until, 
         author,
-        baseUrl,
         outputFilename,
         projects 
     } = req.body;
@@ -48,7 +47,7 @@ app.post('/generate-report', async (req, res) => {
 
     try {
         for (const project of projects) {
-            const { repoPath, projectName, supervisorName } = project;
+            const { repoPath, projectName, supervisorName, baseUrl } = project;
 
             if (!repoPath || !fs.existsSync(repoPath)) {
                 console.warn(`Skipping invalid path: ${repoPath}`);
