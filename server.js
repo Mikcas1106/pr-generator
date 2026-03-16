@@ -59,14 +59,6 @@ app.post('/generate-report', async (req, res) => {
 
             if (!lines || (lines.length === 1 && lines[0] === '')) continue;
 
-            const projParts = projectName.split(' ');
-            const p1 = projParts[0] || "";
-            const p2 = projParts.slice(1).join(' ') || "";
-
-            const supParts = supervisorName.split(' ');
-            const s1 = supParts[0] || "";
-            const s2 = supParts.slice(1).join(' ') || "";
-
             lines.forEach(line => {
                 const parts = line.split('|');
                 if (parts.length < 3) return;
@@ -77,7 +69,8 @@ app.post('/generate-report', async (req, res) => {
                 allCommitsByDate[dateStr].push({
                     subject,
                     link: `${baseUrl}${hashVal}`,
-                    p1, p2, s1, s2
+                    projectName,
+                    supervisorName
                 });
             });
         }
@@ -104,8 +97,7 @@ app.post('/generate-report', async (req, res) => {
 
             allCommitsByDate[dStr].forEach((commit, index) => {
                 const dateToShow = index === 0 ? `"${dFmt}"` : "";
-                csv += `${dateToShow},"${commit.subject.replace(/"/g, '""')}","${dFmt}","${dFmt}","Done","","${commit.p1}","${commit.s1}","${commit.link}"\n`;
-                csv += `,,,,,,,"${commit.p2}","${commit.s2}",""\n`;
+                csv += `${dateToShow},"${commit.subject.replace(/"/g, '""')}","${dFmt}","${dFmt}","Done","","${commit.projectName}","${commit.supervisorName}","${commit.link}"\n`;
             });
         });
 
