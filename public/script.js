@@ -20,7 +20,10 @@ function saveState() {
     const projects = Array.from(projectEntries).map(entry => ({
         repoPath: entry.querySelector('.repoPath').value,
         projectName: entry.querySelector('.projectName').value,
-        supervisorName: entry.querySelector('.supervisorName').value
+        supervisorName: entry.querySelector('.supervisorName').value,
+        repoPlatform: entry.querySelector('.repoPlatform').value,
+        repoWorkspace: entry.querySelector('.repoWorkspace').value,
+        repoName: entry.querySelector('.repoName').value
     }));
 
     const state = {
@@ -56,7 +59,7 @@ function loadState() {
     }
 }
 
-function addProjectEntry(data = { repoPath: '', projectName: '', supervisorName: '', baseUrl: '' }) {
+function addProjectEntry(data = { repoPath: '', projectName: '', supervisorName: '', repoPlatform: 'bitbucket', repoWorkspace: '', repoName: '' }) {
     const container = document.getElementById('projects-container');
     const newEntry = document.createElement('div');
     newEntry.className = 'project-entry glass';
@@ -77,9 +80,20 @@ function addProjectEntry(data = { repoPath: '', projectName: '', supervisorName:
             <label>Supervisor Name</label>
             <input type="text" class="supervisorName" placeholder="Supervisor Name" value="${data.supervisorName}">
         </div>
+        <div class="input-group">
+            <label>Platform</label>
+            <select class="repoPlatform">
+                <option value="bitbucket" ${data.repoPlatform === 'bitbucket' ? 'selected' : ''}>Bitbucket</option>
+                <option value="github" ${data.repoPlatform === 'github' ? 'selected' : ''}>GitHub</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label>Workspace / User</label>
+            <input type="text" class="repoWorkspace" placeholder="e.g., telcomliveph" value="${data.repoWorkspace || ''}">
+        </div>
         <div class="input-group full-width">
-            <label>Commit Base URL</label>
-            <input type="text" class="baseUrl" placeholder="https://bitbucket.org/xxx/commits/" value="${data.baseUrl || ''}">
+            <label>Repository Name</label>
+            <input type="text" class="repoName" placeholder="e.g., ibppms" value="${data.repoName || ''}">
         </div>
     `;
     container.appendChild(newEntry);
@@ -90,7 +104,7 @@ function addProjectEntry(data = { repoPath: '', projectName: '', supervisorName:
     });
 
     // Auto-save on input change
-    newEntry.querySelectorAll('input').forEach(input => {
+    newEntry.querySelectorAll('input, select').forEach(input => {
         input.addEventListener('input', saveState);
     });
 }
@@ -114,12 +128,28 @@ document.getElementById('report-form').addEventListener('submit', async (e) => {
     log("Processing git logs, generating report...", "info");
 
     const projectEntries = document.querySelectorAll('.project-entry');
-    const projects = Array.from(projectEntries).map(entry => ({
-        repoPath: entry.querySelector('.repoPath').value,
-        projectName: entry.querySelector('.projectName').value,
-        supervisorName: entry.querySelector('.supervisorName').value,
-        baseUrl: entry.querySelector('.baseUrl').value
-    }));
+    const projects = Array.from(projectEntries).map(entry => {
+        const platform = entry.querySelector('.repoPlatform').value;
+        const workspace = entry.querySelector('.repoWorkspace').value;
+        const repoName = entry.querySelector('.repoName').value;
+        
+        // Build base URL
+        let baseUrl = '';
+        if (workspace && repoName) {
+            if (platform === 'bitbucket') {
+                baseUrl = `https://bitbucket.org/${workspace}/${repoName}/commits/`;
+            } else {
+                baseUrl = `https://github.com/${workspace}/${repoName}/commit/`;
+            }
+        }
+
+        return {
+            repoPath: entry.querySelector('.repoPath').value,
+            projectName: entry.querySelector('.projectName').value,
+            supervisorName: entry.querySelector('.supervisorName').value,
+            baseUrl: baseUrl
+        };
+    });
 
     const data = {
         employeeName: document.getElementById('employeeName').value,
