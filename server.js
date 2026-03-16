@@ -153,16 +153,24 @@ app.post('/generate-report', async (req, res) => {
             });
         });
 
-        // Auto-adjust column widths
-        sheet.columns.forEach(column => {
-            let maxColumnLength = 0;
-            column.eachCell({ includeEmpty: true }, (cell) => {
-                const columnLength = cell.value ? cell.value.toString().length : 10;
-                if (columnLength > maxColumnLength) {
-                    maxColumnLength = columnLength;
-                }
-            });
-            column.width = maxColumnLength < 12 ? 12 : maxColumnLength + 2;
+        // Column width and Alignment
+        sheet.columns.forEach((column, i) => {
+            const colIndex = i + 1; // 1-based index
+            
+            if (colIndex === 2) { // Column B (Task)
+                column.width = 15; // Approx 100-110px
+                column.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+            } else {
+                let maxColumnLength = 0;
+                column.eachCell({ includeEmpty: true }, (cell) => {
+                    const columnLength = cell.value ? cell.value.toString().length : 10;
+                    if (columnLength > maxColumnLength) {
+                        maxColumnLength = columnLength;
+                    }
+                });
+                column.width = maxColumnLength < 12 ? 12 : maxColumnLength + 2;
+                column.alignment = { vertical: 'top', horizontal: 'left' };
+            }
         });
 
         await workbook.xlsx.writeFile(finalOutputPath);
