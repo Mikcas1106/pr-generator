@@ -59,6 +59,30 @@ function loadState() {
     }
 }
 
+function updateDefaultFilename() {
+    const name = document.getElementById('employeeName').value.trim();
+    const untilDate = document.getElementById('until').value;
+    const filenameInput = document.getElementById('outputFilename');
+
+    if (!name && !untilDate) return;
+
+    let formattedName = name;
+    if (name.includes(' ') && !name.includes(',')) {
+        const parts = name.split(' ');
+        const last = parts.pop();
+        const first = parts.join(' ');
+        formattedName = `${last}, ${first}`;
+    }
+
+    let datePart = '';
+    if (untilDate) {
+        const [y, m, d] = untilDate.split('-');
+        datePart = ` - ${m}.${d}`;
+    }
+
+    filenameInput.value = `PR - ${formattedName}${datePart}`;
+}
+
 function addProjectEntry(data = { repoPath: '', projectName: '', supervisorName: '', repoPlatform: 'bitbucket', repoWorkspace: '', repoName: '' }) {
     const container = document.getElementById('projects-container');
     const newEntry = document.createElement('div');
@@ -116,7 +140,12 @@ document.getElementById('add-project').addEventListener('click', () => {
 
 // Auto-save global inputs
 ['employeeName', 'employeeId', 'author', 'since', 'until', 'outputFilename'].forEach(id => {
-    document.getElementById(id).addEventListener('input', saveState);
+    document.getElementById(id).addEventListener('input', () => {
+        saveState();
+        if (id === 'employeeName' || id === 'until') {
+            updateDefaultFilename();
+        }
+    });
 });
 
 // Load state on start
