@@ -80,8 +80,8 @@ body {
 }
 
 .container {
-    width: 90%;
-    max-width: 800px;
+    width: 95%;
+    max-width: 1200px;
     padding: 2rem 0;
 }
 
@@ -172,8 +172,22 @@ h1 {
 
 /* Forms */
 .form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.split-layout {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 2rem;
+    align-items: start;
+}
+
+.left-col,
+.right-col {
+    display: flex;
+    flex-direction: column;
     gap: 1.5rem;
 }
 
