@@ -7,6 +7,66 @@
     <title>Git Report Generator | Premium Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        .manual-container {
+            color: var(--text-main);
+            margin-top: 1rem;
+        }
+
+        .manual-step {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            transition: transform 0.2s;
+        }
+
+        .manual-step:hover {
+            transform: translateX(10px);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .step-num {
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .manual-note {
+            margin-top: 2rem;
+            padding: 1rem;
+            border-radius: 10px;
+            background: rgba(79, 70, 229, 0.1);
+            border: 1px solid var(--primary-glow);
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .manual-container h3 {
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+
+        code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: var(--secondary);
+        }
+    </style>
 </head>
 
 <body>
@@ -44,46 +104,43 @@
                     <form id="report-form" class="form-grid">
                         <div class="input-group full-width">
                             <label>Repository Folder Path</label>
-                            <input type="text" id="repoPath" placeholder="C:\Users\Admin\Desktop\ibppms"
-                                value="C:\Users\Admin\Desktop\ibppms">
+                            <input type="text" id="repoPath" placeholder="C:\Users\Admin\Desktop\ibppms">
                         </div>
                         <div class="input-group">
                             <label>Employee Name</label>
-                            <input type="text" id="employeeName" value="Kim Castor">
+                            <input type="text" id="employeeName" placeholder="Kim Castor">
                         </div>
                         <div class="input-group">
                             <label>Employee ID</label>
-                            <input type="text" id="employeeId" value="T-22-0043">
+                            <input type="text" id="employeeId" placeholder="T-22-0043">
                         </div>
                         <div class="input-group">
                             <label>Author Email</label>
-                            <input type="text" id="author" placeholder="kim.castor@mobilemoney.ph"
-                                value="kim.castor@mobilemoney.ph">
+                            <input type="text" id="author" placeholder="kim.castor@mobilemoney.ph">
                         </div>
                         <div class="input-group">
                             <label>Commit Base URL</label>
-                            <input type="text" id="baseUrl" value="https://bitbucket.org/telcomliveph/ibppms/commits/">
+                            <input type="text" id="baseUrl" placeholder="https://bitbucket.org/xxx/commits/">
                         </div>
                         <div class="input-group">
                             <label>Start Date</label>
-                            <input type="date" id="since" value="2026-02-23">
+                            <input type="date" id="since">
                         </div>
                         <div class="input-group">
                             <label>End Date</label>
-                            <input type="date" id="until" value="2026-02-28">
+                            <input type="date" id="until">
                         </div>
                         <div class="input-group">
                             <label>Project Name</label>
-                            <input type="text" id="projectName" value="TRANSCO IBPPMS">
+                            <input type="text" id="projectName" placeholder="TRANSCO IBPPMS">
                         </div>
                         <div class="input-group">
                             <label>Supervisor Name</label>
-                            <input type="text" id="supervisorName" value="Joyce Digma">
+                            <input type="text" id="supervisorName" placeholder="Joyce Digma">
                         </div>
                         <div class="input-group full-width">
                             <label>Output CSV Path</label>
-                            <input type="text" id="outputPath"
-                                value="C:\Users\Admin\Downloads\kim-commits-formatted.csv">
+                            <input type="text" id="outputPath" placeholder="C:\Users\Admin\Downloads\report.csv">
                         </div>
 
                         <button type="submit" class="btn-primary animate-shine">Generate Now</button>
@@ -105,6 +162,58 @@
                     </form>
                 </div>
 
+                <!-- Manual Tab -->
+                <div id="tab-manual" class="tab-content">
+                    <div class="manual-container">
+                        <h3>📖 User Guide</h3>
+                        <div class="manual-step">
+                            <span class="step-num">1</span>
+                            <div>
+                                <strong>Find Repo Path:</strong> Copy the full location of your local Git repository
+                                (e.g., <code>C:\Users\Admin\Desktop\ibppms</code>).
+                            </div>
+                        </div>
+                        <div class="manual-step">
+                            <span class="step-num">2</span>
+                            <div>
+                                <strong>Configure Details:</strong> Enter your Name, ID, and the Author Email. This
+                                determines which commits appear in the report.
+                            </div>
+                        </div>
+                        <div class="manual-step">
+                            <span class="step-num">3</span>
+                            <div>
+                                <strong>Generate:</strong> Hit "Generate Now". The tool automatically injects Code
+                                Review rows, Database Review rows, and Weekly Meetings.
+                            </div>
+                        </div>
+                        <div class="manual-step">
+                            <span class="step-num">4</span>
+                            <div>
+                                <strong>Output:</strong> Your formatted CSV is saved to your Downloads folder (or chosen
+                                path), ready to be opened in Excel with the exact TLC layout.
+                            </div>
+                        </div>
+
+                        <div class="manual-note">
+                            <strong>Note:</strong> Thursday and Friday meetings are injected automatically based on the
+                            calendar days of your commits.
+                        </div>
+                    </div>
+                </div>
+
                 <div id="status-log" class="status-log">
                     Ready...
-     
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 Antigravity Tools | Premium Engineering Performance</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
