@@ -114,6 +114,12 @@ app.post('/generate-report', async (req, res) => {
 
     } catch (error) {
         console.error(error);
+        if (error.code === 'EBUSY') {
+            return res.status(500).json({ 
+                success: false, 
+                message: `The file "${outputFilename}" is currently open in another program (like Excel). Please close it and try again.` 
+            });
+        }
         res.status(500).json({ success: false, message: "Error generating report.", error: error.message });
     }
 });
