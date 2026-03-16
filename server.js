@@ -39,7 +39,13 @@ app.post('/generate-report', async (req, res) => {
 
     const authorFilter = author ? `--author="${author}"` : '';
     const sinceFilter = since ? `--since="${since}"` : '';
-    const untilFilter = until ? `--until="${until}"` : '';
+    let untilFilter = '';
+    if (until) {
+        const d = new Date(until);
+        d.setDate(d.getDate() + 1);
+        const nextDay = d.toISOString().split('T')[0];
+        untilFilter = `--until="${nextDay}"`;
+    }
 
     const cmd = `git log ${authorFilter} --no-merges --pretty=format:"%ad|%s|%H" --date=short ${sinceFilter} ${untilFilter}`;
 
