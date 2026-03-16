@@ -102,29 +102,46 @@
                 <!-- Generate Tab -->
                 <div id="tab-generate" class="tab-content active">
                     <form id="report-form" class="form-grid">
-                        <div class="input-group">
-                            <label>Employee Name</label>
-                            <input type="text" id="employeeName" placeholder="Full Name">
+                        <!-- Section 1: User Profile -->
+                        <div class="input-section glass full-width">
+                            <h3><i class="fas fa-user-circle"></i> Employee Information</h3>
+                            <div class="section-grid">
+                                <div class="input-group">
+                                    <label>Employee Name</label>
+                                    <input type="text" id="employeeName" placeholder="Full Name">
+                                </div>
+                                <div class="input-group">
+                                    <label>Employee ID</label>
+                                    <input type="text" id="employeeId" placeholder="Employee ID">
+                                </div>
+                                <div class="input-group">
+                                    <label>Author / Git Email Filter</label>
+                                    <input type="text" id="author" placeholder="email@example.com">
+                                </div>
+                            </div>
                         </div>
-                        <div class="input-group">
-                            <label>Employee ID</label>
-                            <input type="text" id="employeeId" placeholder="Employee ID">
-                        </div>
-                        <div class="input-group">
-                            <label>Author Email</label>
-                            <input type="text" id="author" placeholder="email@example.com">
-                        </div>
-                        <div class="input-group">
-                            <label>Start Date</label>
-                            <input type="date" id="since">
-                        </div>
-                        <div class="input-group">
-                            <label>End Date</label>
-                            <input type="date" id="until">
+
+                        <!-- Section 2: Report Range -->
+                        <div class="input-section glass full-width">
+                            <h3><i class="fas fa-calendar-alt"></i> Coverage Period</h3>
+                            <div class="section-grid">
+                                <div class="input-group">
+                                    <label>Start Date</label>
+                                    <input type="date" id="since">
+                                </div>
+                                <div class="input-group">
+                                    <label>End Date</label>
+                                    <input type="date" id="until">
+                                </div>
+                            </div>
                         </div>
                         <!-- Multi-Project Container -->
                         <div id="projects-container" class="full-width">
                             <div class="project-entry glass">
+                                <h3 class="full-width"
+                                    style="margin-top:0; color:var(--primary); font-size:1rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem; margin-bottom: 1rem;">
+                                    <i class="fas fa-folder-open"></i> Project Details
+                                </h3>
                                 <div class="input-group full-width">
                                     <label>Local Project Folder Directory</label>
                                     <input type="text" class="repoPath" placeholder="C:\path\to\your\repository">

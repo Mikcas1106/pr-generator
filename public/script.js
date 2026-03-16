@@ -62,6 +62,9 @@ function addProjectEntry(data = { repoPath: '', projectName: '', supervisorName:
     newEntry.className = 'project-entry glass';
     newEntry.innerHTML = `
         <button type="button" class="remove-project">×</button>
+        <h3 class="full-width" style="margin-top:0; color:var(--primary); font-size:1rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem; margin-bottom: 1rem;">
+            <i class="fas fa-folder-open"></i> Project Details
+        </h3>
         <div class="input-group full-width">
             <label>Local Project Folder Directory</label>
             <input type="text" class="repoPath" placeholder="C:\\path\\to\\your\\repository" value="${data.repoPath}">
