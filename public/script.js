@@ -30,7 +30,7 @@ document.getElementById('report-form').addEventListener('submit', async (e) => {
         projectName: document.getElementById('projectName').value,
         supervisorName: document.getElementById('supervisorName').value,
         baseUrl: document.getElementById('baseUrl').value,
-        outputPath: document.getElementById('outputPath').value
+        outputFilename: document.getElementById('outputFilename').value
     };
 
     try {

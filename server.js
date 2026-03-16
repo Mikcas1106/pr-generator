@@ -2,6 +2,7 @@ const express = require('express');
 const { exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 
@@ -23,20 +24,14 @@ app.post('/generate-report', async (req, res) => {
         projectName, 
         supervisorName, 
         baseUrl,
-        outputPath 
+        outputFilename 
     } = req.body;
+
+    const downloadsPath = path.join(os.homedir(), 'Downloads');
+    const finalOutputPath = path.join(downloadsPath, outputFilename.endsWith('.csv') ? outputFilename : `${outputFilename}.csv`);
 
     if (!repoPath || !fs.existsSync(repoPath)) {
         return res.status(400).json({ success: false, message: "Invalid repository path." });
-    }
-
-    const outputDir = path.dirname(outputPath);
-    if (!fs.existsSync(outputDir)) {
-        try {
-            fs.mkdirSync(outputDir, { recursive: true });
-        } catch (e) {
-            return res.status(500).json({ success: false, message: "Could not create output directory." });
-        }
     }
 
     const authorFilter = author ? `--author="${author}"` : '';
@@ -111,8 +106,8 @@ app.post('/generate-report', async (req, res) => {
         });
 
         try {
-            fs.writeFileSync(outputPath, csv, 'utf-8');
-            res.json({ success: true, message: `Report generated!`, filePath: outputPath });
+            fs.writeFileSync(finalOutputPath, csv, 'utf-8');
+            res.json({ success: true, message: `Report generated!`, filePath: finalOutputPath });
         } catch (e) {
             res.status(500).json({ success: false, message: "Failed to write CSV.", error: e.message });
         }
