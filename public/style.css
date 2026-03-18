@@ -368,6 +368,12 @@ footer {
 }
 
 /* Responsive */
+@media (max-width: 900px) {
+    .split-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 600px) {
     .form-grid {
         grid-template-columns: 1fr;
