@@ -69,7 +69,9 @@ app.post('/generate-report', async (req, res) => {
             lines.forEach(line => {
                 const parts = line.split('|');
                 if (parts.length < 3) return;
-                const [dateStr, subject, hashVal] = parts;
+                const dateStr = parts[0];
+                const hashVal = parts[parts.length - 1];
+                const subject = parts.slice(1, -1).join('|');
                 
                 if (!allCommitsByDate[dateStr]) allCommitsByDate[dateStr] = [];
                 
