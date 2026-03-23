@@ -38,8 +38,23 @@ app.post('/generate-report', async (req, res) => {
     const downloadsPath = path.join(os.homedir(), 'Downloads');
     const finalOutputPath = path.join(downloadsPath, outputFilename.endsWith('.xlsx') ? outputFilename : `${outputFilename}.xlsx`);
 
-    const authorFilter = author ? `--author="${author}"` : '';
-    const sinceFilter = since ? `--since="${since}"` : '';
+    let authorFilterStr = '';
+    if (author) {
+        // Just use the first part of their name (e.g. 'Ivan' instead of 'Ivan R. Contrevida')
+        // This catches naming variations where git sees 'Ivan Contrevida' or 'icontrevida'.
+        authorFilterStr = author.split(' ')[0];
+    }
+    const authorFilter = authorFilterStr ? `--author="${authorFilterStr}"` : '';
+
+    let sinceFilter = '';
+    if (since) {
+        // Pad the since date by subtracting 3 days to catch Friday/Weekend commits 
+        // that were pushed and merged on Monday but are technically dated earlier by Git.
+        const sinceDate = new Date(since);
+        sinceDate.setDate(sinceDate.getDate() - 3);
+        const paddedSince = sinceDate.toISOString().split('T')[0];
+        sinceFilter = `--since="${paddedSince}"`;
+    }
     let untilFilter = '';
     if (until) {
         const d = new Date(until);
@@ -48,7 +63,7 @@ app.post('/generate-report', async (req, res) => {
         untilFilter = `--until="${nextDay}"`;
     }
 
-    const cmd = `git log ${authorFilter} --no-merges --pretty=format:"%ad|%s|%H" --date=short ${sinceFilter} ${untilFilter}`;
+    const cmd = `git log --all ${authorFilter} --no-merges --pretty=format:"%ad|%s|%H" --date=short ${sinceFilter} ${untilFilter}`;
 
     const allCommitsByDate = {}; 
 
@@ -61,7 +76,14 @@ app.post('/generate-report', async (req, res) => {
                 continue;
             }
 
-            const { stdout } = await execPromise(cmd, { cwd: repoPath });
+            try {
+                await execPromise('git fetch --all', { cwd: repoPath });
+                console.log(`Fetched latest remote changes for ${repoPath}`);
+            } catch (fetchErr) {
+                console.warn(`Could not fetch remote for ${repoPath}. Proceeding with local data...`, fetchErr.message);
+            }
+
+            const { stdout } = await execPromise(cmd, { cwd: repoPath, maxBuffer: 1024 * 1024 * 10 });
             const lines = stdout.trim().split('\n');
 
             if (!lines || (lines.length === 1 && lines[0] === '')) continue;
