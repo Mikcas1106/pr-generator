@@ -355,6 +355,14 @@ select:focus {
     align-items: center;
 }
 
+/* Ensure alert/loading modals are always on top of the Preview modal */
+#loading-modal,
+#success-modal,
+#error-modal,
+#confirm-modal {
+    z-index: 2000;
+}
+
 .modal-content {
     background: var(--card-bg);
     backdrop-filter: blur(20px);
@@ -474,4 +482,128 @@ footer {
     .btn-primary {
         grid-column: span 1;
     }
+}
+
+/* Smart Date Shortcuts */
+.date-shortcuts {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+
+.btn-shortcut {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 0.45rem 0.9rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: inherit;
+    font-weight: 500;
+}
+
+.btn-shortcut:hover {
+    background: rgba(var(--primary-rgb), 0.15);
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.btn-shortcut:active {
+    transform: translateY(0);
+}
+
+/* Preview Table Styles */
+.preview-container {
+    margin-top: 2rem;
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    color: var(--text-main);
+}
+
+.preview-table th {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--primary);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.preview-table td {
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.preview-table tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.preview-table input[type="text"] {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid transparent;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    width: 100%;
+    color: inherit;
+    font-size: inherit;
+}
+
+.preview-table input[type="text"]:focus {
+    border-color: var(--primary);
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.row-excluded {
+    opacity: 0.4;
+    text-decoration: line-through;
+    filter: grayscale(1);
+}
+
+.preview-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+/* Color Coding in Preview */
+.type-meeting {
+    border-left: 4px solid #4da6ff;
+}
+
+.type-database {
+    border-left: 4px solid #9ca3af;
+}
+
+.type-holiday {
+    border-left: 4px solid #10b981;
+}
+
+.type-leave {
+    border-left: 4px solid #fb923c;
+    background: rgba(251, 146, 60, 0.08) !important;
+}
+
+.type-empty {
+    border-left: 4px solid #f59e0b;
+    background: rgba(245, 158, 11, 0.07) !important;
+    color: #f59e0b;
+}
+
+.type-empty td {
+    font-style: italic;
+    opacity: 0.85;
 }

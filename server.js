@@ -16,51 +16,102 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
-app.post('/generate-report', async (req, res) => {
-    console.log("DEBUG: Starting report generation", req.body);
-    const { 
-        employeeName,
-        employeeId,
-        since, 
-        until, 
-        author,
-        outputFilename,
-        projects,
-        holidayDates,
-        defaultTasks
-    } = req.body;
+const holidayCacheV2 = {};
 
-    console.log("DEBUG: defaultTasks received:", defaultTasks);
-    if (!outputFilename) {
-        return res.status(400).json({ success: false, message: "Output filename is required." });
+async function fetchGooglePHHolidays(year) {
+    try {
+        const url = `https://calendar.google.com/calendar/ical/en.philippines%23holiday%40group.v.calendar.google.com/public/basic.ics`;
+        const resp = await fetch(url);
+        if (!resp.ok) return [];
+        const text = await resp.text();
+        
+        const events = text.split('BEGIN:VEVENT').slice(1);
+        const holidays = [];
+        
+        events.forEach(event => {
+            const startMatch = event.match(/DTSTART;VALUE=DATE:(\d{8})/);
+            const summaryMatch = event.match(/SUMMARY(?:;[^:]+)?:([^\r\n]+)/);
+            
+            if (startMatch && summaryMatch) {
+                const d = startMatch[1];
+                if (d.startsWith(year)) {
+                    holidays.push({
+                        date: `${d.substring(0,4)}-${d.substring(4,6)}-${d.substring(6,8)}`,
+                        name: summaryMatch[1].trim().replace(/\r/g, '')
+                    });
+                }
+            }
+        });
+        
+        return holidays;
+    } catch (e) {
+        console.error("Google Holiday Fetch Error:", e.message);
+        return [];
     }
+}
 
-    if (!projects || !Array.isArray(projects) || projects.length === 0) {
-        return res.status(400).json({ success: false, message: "At least one project is required." });
+async function getHolidaysForYear(year) {
+    if (holidayCacheV2[year]) return holidayCacheV2[year];
+    
+    console.log(`Dynamic fetching PH holidays for ${year}...`);
+    try {
+        // Multi-source fetch
+        const [nagerResp, googleHolidays] = await Promise.all([
+            fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/PH`).then(r => r.ok ? r.json() : []),
+            fetchGooglePHHolidays(year)
+        ]);
+
+        const nagerHolidays = Array.isArray(nagerResp) ? nagerResp.map(h => ({ date: h.date, name: h.localName || h.name })) : [];
+        
+        // Merge both sources for maximum accuracy
+        const combinedMap = {};
+        [...nagerHolidays, ...googleHolidays].forEach(h => {
+            combinedMap[h.date] = h.name;
+        });
+        
+        const combined = Object.keys(combinedMap).sort().map(d => ({
+            date: d,
+            name: combinedMap[d]
+        }));
+        
+        if (combined.length > 0) {
+            holidayCacheV2[year] = combined;
+            return combined;
+        }
+        return [];
+    } catch (err) {
+        console.error(`Dynamic holiday fetch error: ${err.message}`);
+        return [];
     }
+}
 
-    const downloadsPath = path.join(os.homedir(), 'Downloads');
-    let baseFilename = outputFilename.endsWith('.xlsx') ? outputFilename.slice(0, -5) : outputFilename;
-    let finalOutputPath = path.join(downloadsPath, `${baseFilename}.xlsx`);
-    let counter = 1;
+// Helper functions
+const parseYYYYMMDD = (str) => {
+    const [y, m, d] = str.split('-').map(Number);
+    return new Date(y, m - 1, d);
+};
+const formatYYYYMMDD = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+};
+const formatDate = (dateStr) => {
+    const [y, m, d] = dateStr.split('-');
+    return `${parseInt(m)}/${parseInt(d)}/${y}`;
+};
 
-    while (fs.existsSync(finalOutputPath)) {
-        finalOutputPath = path.join(downloadsPath, `${baseFilename} (${counter}).xlsx`);
-        counter++;
-    }
-
+async function getLogData(params) {
+    const { since, until, author, projects, defaultTasks } = params;
+    
     let authorFilterStr = '';
     if (author) {
-        // Just use the first part of their name (e.g. 'Ivan' instead of 'Ivan R. Contrevida')
-        // This catches naming variations where git sees 'Ivan Contrevida' or 'icontrevida'.
         authorFilterStr = author.split(' ')[0];
     }
     const authorFilter = authorFilterStr ? `--author="${authorFilterStr}"` : '';
 
     let sinceFilter = '';
     if (since) {
-        // Pad the since date by subtracting 3 days to catch Friday/Weekend commits 
-        // that were pushed and merged on Monday but are technically dated earlier by Git.
         const sinceDate = new Date(since);
         sinceDate.setDate(sinceDate.getDate() - 3);
         const paddedSince = sinceDate.toISOString().split('T')[0];
@@ -75,108 +126,157 @@ app.post('/generate-report', async (req, res) => {
     }
 
     const cmd = `git log --all ${authorFilter} --no-merges --pretty=format:"%ad|%s|%H" --date=short ${sinceFilter} ${untilFilter}`;
-
     const allCommitsByDate = {}; 
 
-    try {
-        for (const project of projects) {
-            const { repoPath, projectName, supervisorName, baseUrl } = project;
+    for (const project of projects) {
+        const { repoPath, projectName, supervisorName, baseUrl } = project;
+        if (!repoPath || !fs.existsSync(repoPath)) continue;
 
-            if (!repoPath || !fs.existsSync(repoPath)) {
-                console.warn(`Skipping invalid path: ${repoPath}`);
-                continue;
-            }
+        try {
+            await execPromise('git fetch --all', { cwd: repoPath });
+        } catch (fetchErr) {}
 
-            try {
-                await execPromise('git fetch --all', { cwd: repoPath });
-                console.log(`Fetched latest remote changes for ${repoPath}`);
-            } catch (fetchErr) {
-                console.warn(`Could not fetch remote for ${repoPath}. Proceeding with local data...`, fetchErr.message);
-            }
+        const { stdout } = await execPromise(cmd, { cwd: repoPath, maxBuffer: 1024 * 1024 * 10 });
+        const lines = stdout.trim().split('\n');
+        if (!lines || (lines.length === 1 && lines[0] === '')) continue;
 
-            const { stdout } = await execPromise(cmd, { cwd: repoPath, maxBuffer: 1024 * 1024 * 10 });
-            const lines = stdout.trim().split('\n');
-
-            if (!lines || (lines.length === 1 && lines[0] === '')) continue;
-
-            lines.forEach(line => {
-                const parts = line.split('|');
-                if (parts.length < 3) return;
-                const dateStr = parts[0];
-                const hashVal = parts[parts.length - 1];
-                const subject = parts.slice(1, -1).join('|');
-                
-                if (!allCommitsByDate[dateStr]) allCommitsByDate[dateStr] = [];
-                
-                allCommitsByDate[dateStr].push({
-                    subject,
-                    link: `${baseUrl}${hashVal}`,
-                    projectName,
-                    supervisorName
-                });
+        lines.forEach(line => {
+            const parts = line.split('|');
+            if (parts.length < 3) return;
+            const dateStr = parts[0];
+            const hashVal = parts[parts.length - 1];
+            const subject = parts.slice(1, -1).join('|');
+            if (!allCommitsByDate[dateStr]) allCommitsByDate[dateStr] = [];
+            allCommitsByDate[dateStr].push({
+                subject,
+                link: `${baseUrl}${hashVal}`,
+                projectName,
+                supervisorName,
+                taskType: 'normal'
             });
-        }
-
-        const sortedDates = Object.keys(allCommitsByDate).sort();
-
-        const parseYYYYMMDD = (str) => {
-            const [y, m, d] = str.split('-').map(Number);
-            return new Date(y, m - 1, d);
-        };
-        const formatYYYYMMDD = (date) => {
-            const y = date.getFullYear();
-            const m = String(date.getMonth() + 1).padStart(2, '0');
-            const d = String(date.getDate()).padStart(2, '0');
-            return `${y}-${m}-${d}`;
-        };
-
-        let startDateStr = since || (sortedDates.length > 0 ? sortedDates[0] : null);
-        let endDateStr = until || (sortedDates.length > 0 ? sortedDates[sortedDates.length - 1] : null);
-
-        let allDaysInRange = [];
-        if (startDateStr && endDateStr) {
-            let curr = parseYYYYMMDD(startDateStr);
-            let end = parseYYYYMMDD(endDateStr);
-            while (curr <= end) {
-                const dayOfWeek = curr.getDay();
-                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                    allDaysInRange.push(formatYYYYMMDD(curr));
-                }
-                curr.setDate(curr.getDate() + 1);
-            }
-        }
-        // Filter allCommitsByDate to only include strictly what is in allDaysInRange
-        // This ensures that even if our Git command fetched "padded" dates (to catch weekend pushes), 
-        // we only report on the user's exact requested window.
-        sortedDates.forEach(d => {
-            // Only add extra days from commits if they fall strictly within the user's range
-            // and aren't already included (this handles cases where a commit might be on 
-            // a weekend within the range, which the standard weekday loop skips).
-            if (d >= startDateStr && d <= endDateStr && !allDaysInRange.includes(d)) {
-                allDaysInRange.push(d);
-            }
         });
+    }
+
+    const sortedDates = Object.keys(allCommitsByDate).sort();
+    let startDateStr = since || (sortedDates.length > 0 ? sortedDates[0] : null);
+    let endDateStr = until || (sortedDates.length > 0 ? sortedDates[sortedDates.length - 1] : null);
+
+    let allDaysInRange = [];
+    if (startDateStr && endDateStr) {
+        let curr = parseYYYYMMDD(startDateStr);
+        let end = parseYYYYMMDD(endDateStr);
+        while (curr <= end) {
+            const dayOfWeek = curr.getDay();
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                allDaysInRange.push(formatYYYYMMDD(curr));
+            }
+            curr.setDate(curr.getDate() + 1);
+        }
+    }
+    sortedDates.forEach(d => {
+        if (d >= startDateStr && d <= endDateStr && !allDaysInRange.includes(d)) {
+            allDaysInRange.push(d);
+        }
+    });
+    allDaysInRange.sort();
+
+    // Determine relevant years from the range
+    const startYear = startDateStr ? String(new Date(startDateStr).getFullYear()) : '2026';
+    const endYear = endDateStr ? String(new Date(endDateStr).getFullYear()) : startYear;
+    
+    let holidays = [];
+    for (let y = parseInt(startYear); y <= parseInt(endYear); y++) {
+        const yHolidays = await getHolidaysForYear(String(y));
+        holidays = [...holidays, ...yHolidays];
+    }
+
+    const reportRows = [];
+    allDaysInRange.forEach(dStr => {
+        const dFmt = formatDate(dStr);
+        let entriesForDay = [];
         
-        allDaysInRange.sort();
-
-        if (allDaysInRange.length === 0) {
-            return res.status(404).json({ success: false, message: "No valid dates found for the specified period." });
+        const hMatch = Array.isArray(holidays) ? holidays.find(h => h.date === dStr) : null;
+        if (hMatch) {
+            entriesForDay.push({
+                date: dStr,
+                dateFmt: dFmt,
+                subject: hMatch.name || 'Holiday',
+                projectName: '',
+                supervisorName: '',
+                remarks: '',
+                link: '',
+                taskType: 'holiday'
+            });
+        } else {
+            if (allCommitsByDate[dStr]) {
+                allCommitsByDate[dStr].forEach(c => entriesForDay.push({ ...c, date: dStr, dateFmt: dFmt, remarks: '' }));
+            }
+            
+            const dObj = parseYYYYMMDD(dStr);
+            const dayOfWeek = dObj.getDay().toString();
+            if (defaultTasks && Array.isArray(defaultTasks)) {
+                defaultTasks.forEach(task => {
+                    if (task.taskDay === dayOfWeek || task.taskDay === 'all') {
+                        entriesForDay.push({
+                            date: dStr,
+                            dateFmt: dFmt,
+                            subject: task.taskName,
+                            projectName: task.taskProject || '',
+                            supervisorName: task.taskSupervisor || '',
+                            remarks: task.taskRemarks || '',
+                            link: '',
+                            taskType: task.taskType || 'normal'
+                        });
+                    }
+                });
+            }
         }
 
-        let holidays = [];
-        if (holidayDates) {
-            holidays = holidayDates.split(',').map(d => d.trim()).filter(d => d);
+        if (entriesForDay.length === 0) {
+            reportRows.push({
+                date: dStr,
+                dateFmt: dFmt,
+                subject: '⚠️ No entries for this day',
+                projectName: '',
+                supervisorName: '',
+                remarks: '',
+                link: '',
+                taskType: 'empty'
+            });
+        } else {
+            reportRows.push(...entriesForDay);
         }
+    });
 
-        const formatDate = (dateStr) => {
-            const [y, m, d] = dateStr.split('-');
-            return `${parseInt(m)}/${parseInt(d)}/${y}`;
-        };
+    return reportRows;
+}
 
+app.post('/preview-data', async (req, res) => {
+    try {
+        const data = await getLogData(req.body);
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Error fetching preview data.", error: error.message });
+    }
+});
+
+app.post('/generate-report', async (req, res) => {
+    const { 
+        employeeName,
+        employeeId,
+        outputFilename,
+        reportData // The (possibly edited) rows from the frontend
+    } = req.body;
+
+    if (!reportData || !Array.isArray(reportData)) {
+        return res.status(400).json({ success: false, message: "Report data is required." });
+    }
+
+    try {
         const workbook = new ExcelJS.Workbook();
         const sheet = workbook.addWorksheet('Progress Report');
 
-        // Header Title: Merge A1:I1 and Center
         sheet.mergeCells('A1:I1');
         const titleCell = sheet.getCell('A1');
         titleCell.value = 'TLC PROGRESS REPORT';
@@ -185,7 +285,10 @@ app.post('/generate-report', async (req, res) => {
 
         sheet.addRow(['Employee', employeeName]);
         sheet.addRow(['Employee ID', employeeId]);
-        sheet.addRow(['Coverage Date', `${formatDate(allDaysInRange[0])} - ${formatDate(allDaysInRange[allDaysInRange.length - 1])}`]);
+        
+        const firstRow = reportData[0];
+        const lastRow = reportData[reportData.length - 1];
+        sheet.addRow(['Coverage Date', `${firstRow ? firstRow.dateFmt : ''} - ${lastRow ? lastRow.dateFmt : ''}`]);
         sheet.addRow([]);
 
         const headerRow = sheet.addRow([
@@ -197,77 +300,48 @@ app.post('/generate-report', async (req, res) => {
             cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
         });
 
-        allDaysInRange.forEach(dStr => {
-            const dFmt = formatDate(dStr);
-            let entriesForDay = [];
+        let lastDate = "";
+        reportData.forEach((entry) => {
+            const dateToShow = entry.dateFmt !== lastDate ? entry.dateFmt : "";
+            lastDate = entry.dateFmt;
+
+            const rowValue = [
+                dateToShow,
+                entry.subject,
+                entry.dateFmt,
+                entry.dateFmt,
+                'Done',
+                entry.remarks || '',
+                entry.projectName || '',
+                entry.supervisorName || '',
+                entry.link || ''
+            ];
+            const row = sheet.addRow(rowValue);
             
-            if (holidays.includes(dStr)) {
-                entriesForDay.push({
-                    subject: 'Holiday',
-                    projectName: '',
-                    supervisorName: '',
-                    remarks: '',
-                    link: '',
-                    taskType: 'holiday'
-                });
-            } else {
-                if (allCommitsByDate[dStr]) {
-                    entriesForDay.push(...allCommitsByDate[dStr]);
-                }
-                
-                const dObj = parseYYYYMMDD(dStr);
-                const dayOfWeek = dObj.getDay().toString();
+            // Make Git Link clickable if URL exists
+            if (entry.link) {
+                const gitCell = row.getCell(9);
+                gitCell.value = { text: 'View Commit', hyperlink: entry.link };
+                gitCell.font = { color: { argb: 'FF0000FF' }, underline: true };
 
-                if (defaultTasks && Array.isArray(defaultTasks)) {
-                    defaultTasks.forEach(task => {
-                        if (task.taskDay === dayOfWeek || task.taskDay === 'all') {
-                            entriesForDay.push({
-                                subject: task.taskName,
-                                projectName: task.taskProject || '',
-                                supervisorName: task.taskSupervisor || '',
-                                remarks: task.taskRemarks || '',
-                                link: '',
-                                taskType: task.taskType || 'normal'
-                            });
-                        }
-                    });
-                }
+                // Also make the Subject cell a clickable hyperlink
+                const subjectCell = row.getCell(2);
+                subjectCell.value = { text: entry.subject, hyperlink: entry.link };
+                subjectCell.font = { color: { argb: 'FF0000FF' }, underline: true };
             }
 
-            if (entriesForDay.length > 0) {
-                entriesForDay.forEach((entry, index) => {
-                    const dateToShow = index === 0 ? dFmt : "";
-                    const rowValue = [
-                        dateToShow,
-                        entry.subject,
-                        dFmt,
-                        dFmt,
-                        'Done',
-                        entry.remarks || '',
-                        entry.projectName || '',
-                        entry.supervisorName || '',
-                        entry.link || ''
-                    ];
-                    const row = sheet.addRow(rowValue);
-                    
-                    // Apply background color based on taskType
-                    let fillColor = null;
-                    if (entry.taskType === 'meeting') fillColor = 'FFADD8E6'; // Light Blue
-                    else if (entry.taskType === 'database') fillColor = 'FFD3D3D3'; // Light Gray
-                    else if (entry.taskType === 'holiday') fillColor = 'FF90EE90'; // Light Green
+            let fillColor = null;
+            if (entry.taskType === 'meeting') fillColor = 'FFADD8E6';      // Light Blue
+            else if (entry.taskType === 'database') fillColor = 'FFD3D3D3'; // Light Gray
+            else if (entry.taskType === 'holiday') fillColor = 'FF90EE90';  // Light Green
+            else if (entry.taskType === 'leave') fillColor = 'FFFFD8B1';    // Light Orange
 
-                    row.eachCell((cell) => {
-                        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                        if (fillColor) {
-                            cell.fill = {
-                                type: 'pattern',
-                                pattern: 'solid',
-                                fgColor: { argb: fillColor }
-                            };
-                        }
-                    });
-                });
-            }
+            row.eachCell((cell) => {
+                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                if (fillColor) {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
+                }
+            });
         });
 
         sheet.columns.forEach((column, i) => {
@@ -286,22 +360,17 @@ app.post('/generate-report', async (req, res) => {
             }
         });
 
-        await workbook.xlsx.writeFile(finalOutputPath);
-        res.json({ success: true, message: `Excel report generated successfully!`, filePath: finalOutputPath });
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${outputFilename}.xlsx"`);
+
+        await workbook.xlsx.write(res);
+        res.end();
 
     } catch (error) {
         console.error(error);
-        if (error.code === 'EBUSY') {
-            return res.status(500).json({ 
-                success: false, 
-                message: `The file "${outputFilename}" is currently open in another program (like Excel). Please close it and try again.` 
-            });
-        }
         res.status(500).json({ success: false, message: "Error generating report.", error: error.message });
     }
 });
-
-
 
 app.use((err, req, res, next) => {
     console.error(err.stack);

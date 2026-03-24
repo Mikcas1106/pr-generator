@@ -52,12 +52,16 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('carousel-finish').addEventListener('click', finishOnboarding);
 });
 
-function showTab(tab) {
+function showTab(tab, btn) {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
     
     document.getElementById(`tab-${tab}`).classList.add('active');
-    event.currentTarget.classList.add('active');
+
+    // btn is passed explicitly from HTML (onclick="showTab('x', this)")
+    // or resolved here when called programmatically
+    const activeBtn = btn || document.querySelector(`.tabs button[data-tab="${tab}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
 }
 
 const statusLog = document.getElementById('status-log');
@@ -291,6 +295,7 @@ function addDefaultTaskEntry(data = { taskName: '', taskDay: '1', taskProject: '
                     <option value="meeting" ${data.taskType === 'meeting' ? 'selected' : '' }>🏠 Meeting (Blue)</option>
                     <option value="database" ${data.taskType === 'database' ? 'selected' : '' }>💾 Database & Server (Gray)</option>
                     <option value="holiday" ${data.taskType === 'holiday' ? 'selected' : '' }>🎉 Holiday (Green)</option>
+                    <option value="leave" ${data.taskType === 'leave' ? 'selected' : '' }>🌴 Leave (Orange)</option>
                 </select>
             </div>
         </div>
@@ -357,28 +362,57 @@ if (addDefaultTaskBtn) {
 // Load state on start
 window.addEventListener('DOMContentLoaded', loadState);
 
+// Smart Date Shortcuts — Week of current month (Mon–Fri)
+document.querySelectorAll('.btn-shortcut').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        const range = e.target.getAttribute('data-range');
+        const today = new Date();
+
+        // Find the first Monday of the current month
+        const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        const dayOfWeek = firstOfMonth.getDay(); // 0=Sun, 1=Mon...
+        // Days to advance to reach the first Monday (0 if already Monday)
+        const daysToMonday = dayOfWeek === 0 ? 1 : (dayOfWeek === 1 ? 0 : 8 - dayOfWeek);
+        const firstMonday = new Date(firstOfMonth);
+        firstMonday.setDate(firstOfMonth.getDate() + daysToMonday);
+
+        const weekNum = parseInt(range.split('-')[1]) - 1; // 0-indexed
+        const since = new Date(firstMonday);
+        since.setDate(firstMonday.getDate() + weekNum * 7);
+
+        const until = new Date(since);
+        until.setDate(since.getDate() + 4); // Friday
+
+        // Use local date formatting (NOT toISOString which is UTC and shifts dates in UTC+8)
+        const fmt = (d) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        };
+
+        document.getElementById('since').value = fmt(since);
+        document.getElementById('until').value = fmt(until);
+        saveState();
+    });
+});
+
+let currentPreviewData = [];
+
 async function handleFormSubmit(e) {
     if (e) e.preventDefault();
-    log("Processing git logs, generating report...", "info");
+    log("Fetching data for preview...", "info");
 
     const since = document.getElementById('since').value;
     const until = document.getElementById('until').value;
-    const outputFilename = updateDefaultFilename();
     const projects = Array.from(document.querySelectorAll('.project-entry')).map(entry => {
         const platform = entry.querySelector('.repoPlatform').value;
         const workspace = entry.querySelector('.repoWorkspace').value;
         const repoName = entry.querySelector('.repoName').value;
-        
-        // Build base URL
         let baseUrl = '';
         if (workspace && repoName) {
-            if (platform === 'bitbucket') {
-                baseUrl = `https://bitbucket.org/${workspace}/${repoName}/commits/`;
-            } else {
-                baseUrl = `https://github.com/${workspace}/${repoName}/commit/`;
-            }
+            baseUrl = platform === 'bitbucket' ? `https://bitbucket.org/${workspace}/${repoName}/commits/` : `https://github.com/${workspace}/${repoName}/commit/`;
         }
-
         return {
             repoPath: entry.querySelector('.repoPath').value,
             projectName: entry.querySelector('.projectName').value,
@@ -387,14 +421,14 @@ async function handleFormSubmit(e) {
         };
     });
 
+    if (!since || !until) {
+        log('Please select both start and end dates', 'error');
+        return;
+    }
+
     const data = {
-        employeeName: document.getElementById('employeeName').value,
-        employeeId: document.getElementById('employeeId').value,
-        author: document.getElementById('author').value,
-        since: since,
-        until: until,
-        outputFilename: outputFilename,
-        projects: projects,
+        since, until, author: document.getElementById('author').value,
+        projects,
         defaultTasks: Array.from(document.querySelectorAll('.default-task-entry')).map(entry => ({
             taskName: entry.querySelector('.taskName').value,
             taskDay: entry.querySelector('.taskDay').value,
@@ -406,88 +440,196 @@ async function handleFormSubmit(e) {
         })).filter(t => t.taskName.trim() !== '' && t.taskEnabled)
     };
 
-    // Validation
-    if (!since || !until) {
-        log('Please select both start and end dates', 'error');
-        document.getElementById('error-message').textContent = 'Both Start and End dates are required to generate a report.';
-        document.getElementById('error-modal').style.display = 'flex';
-        return;
-    }
-
-    if (new Date(since) > new Date(until)) {
-        log('Start date must be before end date', 'error');
-        document.getElementById('error-message').textContent = 'The Start Date cannot be after the End Date. Please correct your range.';
-        document.getElementById('error-modal').style.display = 'flex';
-        return;
-    }
-
-    if (projects.length === 0) {
-        log('Add at least one project', 'error');
-        document.getElementById('error-message').textContent = 'Please add at least one project local directory to continue.';
-        document.getElementById('error-modal').style.display = 'flex';
-        return;
-    }
-
-    // Show Confirmation Modal
-    document.getElementById('confirm-period').textContent = `${since || 'Start'} to ${until || 'Present'}`;
-    document.getElementById('confirm-filename').textContent = outputFilename;
-    document.getElementById('confirm-projects').textContent = `${projects.length} Project(s)`;
-    
-    document.getElementById('confirm-modal').style.display = 'flex';
-
-    // One-time listeners for the modal buttons
-    const confirmBtn = document.getElementById('confirm-gen');
-    const cancelBtn = document.getElementById('cancel-gen');
-
-    const onConfirm = async () => {
-        document.getElementById('confirm-modal').style.display = 'none';
-        document.getElementById('loading-modal').style.display = 'flex';
-        
-        try {
-            const response = await fetch('http://localhost:3001/generate-report', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-
-            const result = await response.json();
-            const statusLog = document.getElementById('status-log');
-
-            if (result.success) {
-                statusLog.textContent = result.message;
-                statusLog.className = 'status-log status-success';
-                document.getElementById('success-message').textContent = result.message;
-                document.getElementById('success-modal').style.display = 'flex';
-            } else {
-                statusLog.textContent = result.message;
-                statusLog.className = 'status-log status-error';
-                document.getElementById('error-message').textContent = result.message;
-                document.getElementById('error-modal').style.display = 'flex';
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            const statusLog = document.getElementById('status-log');
-            statusLog.textContent = 'Error: ' + error.message;
-            statusLog.className = 'status-log status-error';
-            document.getElementById('error-message').textContent = 'Failed to connect to the server. Please check if the Node service is running.';
-            document.getElementById('error-modal').style.display = 'flex';
-        } finally {
-            document.getElementById('loading-modal').style.display = 'none';
-            // Cleanup: important since we add these listeners every time handledFormSubmit is called
-            confirmBtn.removeEventListener('click', onConfirm);
-            cancelBtn.removeEventListener('click', onCancel);
+    document.getElementById('loading-modal').style.display = 'flex';
+    try {
+        const response = await fetch('http://localhost:3001/preview-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await response.json();
+        if (result.success) {
+            currentPreviewData = result.data.map(row => ({ ...row, included: true }));
+            renderPreviewTable();
+            document.getElementById('preview-modal').style.display = 'flex';
+            log("Preview ready. Review and export when done.", "success");
+        } else {
+            log(result.message, "error");
         }
-    };
-
-    const onCancel = () => {
-        document.getElementById('confirm-modal').style.display = 'none';
-        confirmBtn.removeEventListener('click', onConfirm);
-        cancelBtn.removeEventListener('click', onCancel);
-    };
-
-    confirmBtn.addEventListener('click', onConfirm);
-    cancelBtn.addEventListener('click', onCancel);
+    } catch (err) {
+        log("Error: " + err.message, "error");
+    } finally {
+        document.getElementById('loading-modal').style.display = 'none';
+    }
 }
+
+function renderPreviewTable() {
+    const body = document.getElementById('preview-body');
+    body.innerHTML = '';
+    currentPreviewData.forEach((row, index) => {
+        const isEmptyDay = row.taskType === 'empty';
+        if (isEmptyDay && row.included === undefined) row.included = false;
+
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-index', index);
+        tr.className = `type-${row.taskType}`;
+        if (!row.included) tr.classList.add('row-excluded');
+
+        if (isEmptyDay) {
+            tr.innerHTML = `
+                <td><input type="checkbox" disabled></td>
+                <td>${row.dateFmt}</td>
+                <td>
+                    <span style="display:inline-flex; align-items:center; gap:0.5rem;">
+                        ⚠️ <strong>No entries for this day</strong>
+                        <span style="background:rgba(245,158,11,0.2); color:#f59e0b; padding:2px 8px; border-radius:20px; font-size:0.75rem; font-style:normal;">EMPTY DAY</span>
+                    </span>
+                </td>
+                <td colspan="4" style="opacity:0.4; font-size:0.8rem;">Add a commit or default task for this date</td>
+            `;
+        } else {
+            const typeOptions = [
+                { value: 'normal',   label: 'Normal',      color: 'var(--text-muted)' },
+                { value: 'meeting',  label: '🏠 Meeting',  color: '#4da6ff' },
+                { value: 'database', label: '💾 Database', color: '#9ca3af' },
+                { value: 'holiday',  label: '🎉 Holiday',  color: '#10b981' },
+                { value: 'leave',    label: '🌴 Leave',    color: '#fb923c' },
+            ];
+            const optionsHtml = typeOptions.map(o =>
+                `<option value="${o.value}" ${row.taskType === o.value ? 'selected' : ''}>${o.label}</option>`
+            ).join('');
+
+            tr.innerHTML = `
+                <td><input type="checkbox" class="row-include" ${row.included ? 'checked' : ''}></td>
+                <td>${row.dateFmt}</td>
+                <td>${row.subject}</td>
+                <td>${row.projectName}</td>
+                <td>${row.supervisorName}</td>
+                <td>
+                    <select class="row-type" style="width:100%; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:inherit; border-radius:6px; padding:0.3rem 0.5rem; font-size:0.82rem; font-family:inherit; cursor:pointer;">
+                        ${optionsHtml}
+                    </select>
+                </td>
+                <td><input type="text" class="row-remarks" value="${row.remarks}" placeholder="Add remarks..."></td>
+            `;
+            tr.querySelector('.row-include').addEventListener('change', (e) => {
+                currentPreviewData[index].included = e.target.checked;
+                tr.classList.toggle('row-excluded', !e.target.checked);
+                updatePreviewCount();
+            });
+            tr.querySelector('.row-type').addEventListener('change', (e) => {
+                currentPreviewData[index].taskType = e.target.value;
+                tr.className = `type-${e.target.value}`;
+                if (!currentPreviewData[index].included) tr.classList.add('row-excluded');
+            });
+            tr.querySelector('.row-remarks').addEventListener('input', (e) => {
+                currentPreviewData[index].remarks = e.target.value;
+            });
+        }
+        body.appendChild(tr);
+    });
+    filterPreviewTable(); // apply any active search after re-render
+    updatePreviewCount();
+}
+
+function filterPreviewTable() {
+    const query = (document.getElementById('preview-search')?.value || '').toLowerCase().trim();
+    const clearBtn = document.getElementById('preview-search-clear');
+    if (clearBtn) clearBtn.style.display = query ? 'inline' : 'none';
+
+    document.querySelectorAll('#preview-body tr').forEach(tr => {
+        if (!query) { tr.style.display = ''; return; }
+        const idx = parseInt(tr.getAttribute('data-index'));
+        const row = currentPreviewData[idx];
+        if (!row) { tr.style.display = ''; return; }
+        const haystack = `${row.dateFmt} ${row.subject} ${row.projectName} ${row.supervisorName} ${row.remarks}`.toLowerCase();
+        tr.style.display = haystack.includes(query) ? '' : 'none';
+    });
+}
+
+function updatePreviewCount() {
+    const emptyDays = currentPreviewData.filter(r => r.taskType === 'empty');
+    const included = currentPreviewData.filter(r => r.included && r.taskType !== 'empty').length;
+    const total = currentPreviewData.filter(r => r.taskType !== 'empty').length;
+    const el = document.getElementById('preview-row-count');
+    if (!el) return;
+    let text = `${included} of ${total} rows included in export`;
+    if (emptyDays.length > 0) {
+        text += ` &nbsp;·&nbsp; <span style="color:#f59e0b;">⚠️ ${emptyDays.length} empty day${emptyDays.length > 1 ? 's' : ''} detected</span>`;
+    }
+    el.innerHTML = text;
+}
+
+document.getElementById('select-all-preview').addEventListener('change', (e) => {
+    const checked = e.target.checked;
+    currentPreviewData.forEach(row => {
+        if (row.taskType !== 'empty') row.included = checked;
+    });
+    renderPreviewTable();
+    updatePreviewCount();
+});
+
+// Wire up live search
+window.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('preview-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', filterPreviewTable);
+    }
+
+    // Show Release Notes for V2.0 on every load (User request: "always pop up")
+    const releaseModal = document.getElementById('release-notes-modal');
+    if (releaseModal) {
+        releaseModal.style.display = 'flex';
+    }
+});
+
+document.getElementById('export-btn').addEventListener('click', async () => {
+    // Always exclude empty-day warning rows from the export
+    const includedData = currentPreviewData.filter(row => row.included && row.taskType !== 'empty');
+    if (includedData.length === 0) {
+        alert("Please include at least one row in the report.");
+        return;
+    }
+
+    const outputFilename = updateDefaultFilename();
+    const data = {
+        employeeName: document.getElementById('employeeName').value,
+        employeeId: document.getElementById('employeeId').value,
+        outputFilename: outputFilename,
+        reportData: includedData
+    };
+
+    log("Generating Excel file...", "info");
+    document.getElementById('loading-modal').style.display = 'flex';
+
+    try {
+        const response = await fetch('http://localhost:3001/generate-report', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) throw new Error("Export failed");
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${outputFilename}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        log("Report downloaded successfully!", "success");
+        document.getElementById('success-message').textContent = "Your report has been generated and downloaded directly to your browser.";
+        document.getElementById('success-modal').style.display = 'flex';
+    } catch (err) {
+        log("Export Error: " + err.message, "error");
+    } finally {
+        document.getElementById('loading-modal').style.display = 'none';
+    }
+});
 
 // Generate Report Form
 document.getElementById('report-form').addEventListener('submit', handleFormSubmit);
