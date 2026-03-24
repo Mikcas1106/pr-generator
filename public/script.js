@@ -406,6 +406,28 @@ async function handleFormSubmit(e) {
         })).filter(t => t.taskName.trim() !== '' && t.taskEnabled)
     };
 
+    // Validation
+    if (!since || !until) {
+        log('Please select both start and end dates', 'error');
+        document.getElementById('error-message').textContent = 'Both Start and End dates are required to generate a report.';
+        document.getElementById('error-modal').style.display = 'flex';
+        return;
+    }
+
+    if (new Date(since) > new Date(until)) {
+        log('Start date must be before end date', 'error');
+        document.getElementById('error-message').textContent = 'The Start Date cannot be after the End Date. Please correct your range.';
+        document.getElementById('error-modal').style.display = 'flex';
+        return;
+    }
+
+    if (projects.length === 0) {
+        log('Add at least one project', 'error');
+        document.getElementById('error-message').textContent = 'Please add at least one project local directory to continue.';
+        document.getElementById('error-modal').style.display = 'flex';
+        return;
+    }
+
     // Show Confirmation Modal
     document.getElementById('confirm-period').textContent = `${since || 'Start'} to ${until || 'Present'}`;
     document.getElementById('confirm-filename').textContent = outputFilename;

@@ -145,9 +145,14 @@ app.post('/generate-report', async (req, res) => {
                 curr.setDate(curr.getDate() + 1);
             }
         }
-        
+        // Filter allCommitsByDate to only include strictly what is in allDaysInRange
+        // This ensures that even if our Git command fetched "padded" dates (to catch weekend pushes), 
+        // we only report on the user's exact requested window.
         sortedDates.forEach(d => {
-            if (!allDaysInRange.includes(d)) {
+            // Only add extra days from commits if they fall strictly within the user's range
+            // and aren't already included (this handles cases where a commit might be on 
+            // a weekend within the range, which the standard weekday loop skips).
+            if (d >= startDateStr && d <= endDateStr && !allDaysInRange.includes(d)) {
                 allDaysInRange.push(d);
             }
         });
