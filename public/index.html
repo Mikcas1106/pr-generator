@@ -96,7 +96,7 @@
             <section class="card glass">
                 <div class="tabs">
                     <button class="active" onclick="showTab('generate')">Generate Report</button>
-                    <button onclick="showTab('clone')">Clone Repo</button>
+                    <button onclick="showTab('defaults')">Defaults & Holidays</button>
                     <button onclick="showTab('manual')">Manual</button>
                 </div>
 
@@ -190,93 +190,256 @@
                     </form>
                 </div>
 
-                <!-- Clone Tab -->
-                <div id="tab-clone" class="tab-content">
-                    <form id="clone-form" class="form-grid">
-                        <div class="input-group full-width">
-                            <label>Repository Remote URL</label>
-                            <input type="text" id="repoUrl" placeholder="https://bitbucket.org/xxx.git">
-                        </div>
-                        <div class="input-group full-width">
-                            <label>Target Folder Path</label>
-                            <input type="text" id="targetDir" placeholder="C:\Users\Admin\Desktop\repo-name">
-                        </div>
-                        <button type="submit" class="btn-primary animate-shine">Clone Repository</button>
-                    </form>
-                </div>
-
-                <!-- Manual Tab -->
-                <div id="tab-manual" class="tab-content">
-                    <div class="manual-container">
-                        <h3>📖 User Guide</h3>
-                        <div class="manual-step">
-                            <span class="step-num">1</span>
-                            <div>
-                                <strong>Find Repo Path:</strong> Copy the full location of your local Git repository
-                                (e.g., <code>C:\Projects\my-repo</code>).
+                <!-- Defaults Tab -->
+                <div id="tab-defaults" class="tab-content">
+                    <div class="form-grid">
+                        <div class="input-section glass full-width">
+                            <h3><i class="fas fa-calendar-check"></i> Defaults & Holidays Config</h3>
+                            <div id="default-tasks-container" class="full-width">
                             </div>
-                        </div>
-                        <div class="manual-step">
-                            <span class="step-num">2</span>
-                            <div>
-                                <strong>Configure Details:</strong> Enter your Name, ID, and the Author Email. This
-                                determines which commits appear in the report.
+                            <div class="full-width add-project-btn-container" style="margin-top: 1rem;">
+                                <button type="button" id="add-default-task" class="btn-secondary">+ Add Default
+                                    Task</button>
                             </div>
-                        </div>
-                        <div class="manual-step">
-                            <span class="step-num">3</span>
-                            <div>
-                                <strong>Generate:</strong> Hit "Generate Now". The tool automatically injects Code
-                                Review rows, Database Review rows, and Weekly Meetings.
-                            </div>
-                        </div>
-                        <div class="manual-step">
-                            <span class="step-num">4</span>
-                            <div>
-                                <strong>Output:</strong> Your formatted CSV is saved to your Downloads folder (or chosen
-                                path), ready to be opened in Excel with the exact TLC layout.
-                            </div>
-                        </div>
-
-                        <div class="manual-step">
-                            <span class="step-num">5</span>
-                            <div>
-                                <strong>Smart Links:</strong> To generate commit links, use the <code>Platform</code>,
-                                <code>Workspace</code>, and <code>Repository</code> fields.
-                            </div>
-                        </div>
-
-                        <div class="manual-note"
-                            style="background: rgba(var(--primary-rgb), 0.1); border-left: 4px solid var(--primary); margin-top: 1.5rem; padding: 1rem; border-radius: 8px;">
-                            <h4 style="margin: 0 0 0.5rem 0; color: var(--primary);">🔗 How to find your Workspace &
-                                Repo:</h4>
-                            <p style="margin: 0; font-size: 0.9rem; line-height: 1.6;">
-                                Look at your Bitbucket/GitHub URL:<br>
-                                <code>bitbucket.org/<span style="color: #ff4d4d; font-weight: bold;">workspace</span>/<span style="color: #4da6ff; font-weight: bold;">repository</span>/src/...</code>
-                            </p>
-                            <ul
-                                style="margin: 1rem 0 0 0; padding-left: 1.5rem; font-size: 0.85rem; color: var(--text-muted);">
-                                <li><strong>Workspace:</strong> The text immediately after the domain name.</li>
-                                <li><strong>Repository:</strong> The name of the project folder in the URL.</li>
-                            </ul>
-                        </div>
-
-                        <div class="manual-note">
-                            <strong>Note:</strong> Thursday and Friday meetings are injected automatically based on the
-                            calendar days of your commits.
                         </div>
                     </div>
                 </div>
 
-                <div id="status-log" class="status-log">
-                    Ready...
+                <!-- Manual Tab -->
+                <div id="tab-manual" class="tab-content">
+                    <div class="manual-container"
+                        style="text-align: center; padding: 4rem 2rem; background: rgba(255,255,255,0.02); border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); margin-top: 2rem;">
+                        <div
+                            style="background: rgba(var(--primary-rgb), 0.1); width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 2rem; color: var(--primary); font-size: 3rem; box-shadow: 0 0 30px rgba(var(--primary-rgb), 0.2);">
+                            <i class="fas fa-book-open"></i>
+                        </div>
+                        <h2 style="margin-bottom: 1rem; font-size: 1.8rem;">Interactive User Guide</h2>
+                        <p
+                            style="opacity: 0.7; max-width: 500px; margin: 0 auto 2.5rem; line-height: 1.6; font-size: 1.05rem;">
+                            Need a refresher on how to use the new project automation and color-coded reporting? Launch
+                            our step-by-step visual tour.
+                        </p>
+                        <button type="button" onclick="openManual()" class="btn-primary"
+                            style="padding: 1.2rem 2.5rem; font-size: 1.1rem; height: auto; border-radius: 50px;">
+                            <i class="fas fa-play" style="margin-right: 0.8rem;"></i> Launch Visual Tour
+                        </button>
+                    </div>
+
+                    <div class="manual-note"
+                        style="background: rgba(var(--primary-rgb), 0.1); border-left: 4px solid var(--primary); margin-top: 1.5rem; padding: 1rem; border-radius: 8px;">
+                        <h4 style="margin: 0 0 0.5rem 0; color: var(--primary);">🔗 How to find your Workspace & Repo:
+                        </h4>
+                        <p style="margin: 0; font-size: 0.9rem; line-height: 1.6;">
+                            Look at your Bitbucket/GitHub URL:<br>
+                            <code>bitbucket.org/<span style="color: #ff4d4d; font-weight: bold;">workspace</span>/<span style="color: #4da6ff; font-weight: bold;">repository</span>/src/...</code>
+                        </p>
+                        <ul
+                            style="margin: 1rem 0 0 0; padding-left: 1.5rem; font-size: 0.85rem; color: var(--text-muted);">
+                            <li><strong>Workspace:</strong> The text immediately after the domain name.</li>
+                            <li><strong>Repository:</strong> The name of the project folder in the URL.</li>
+                        </ul>
+                    </div>
+
+                    <div class="manual-note">
+                        <strong>Note:</strong> Thursday and Friday meetings are injected automatically based on the
+                        calendar days of your commits.
+                    </div>
                 </div>
             </section>
+
+            <div id="status-log" class="status-log">
+                Ready...
+            </div>
         </main>
 
         <footer>
             <p>&copy; 2026 By MikCas</p>
         </footer>
+    </div>
+
+    <!-- Loading Modal -->
+    <div id="loading-modal" class="modal-overlay">
+        <div class="modal-content glass animate-scale-up"
+            style="max-width: 400px; text-align: center; padding: 3rem 2rem;">
+            <div class="loading-spinner"></div>
+            <h2 style="margin-bottom: 0.5rem; color: var(--primary);">Generating Report</h2>
+            <p style="opacity: 0.7; font-size: 0.95rem;">Please wait while we fetch your commits and build your Excel
+                file...</p>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal-content glass animate-scale-up" style="max-width: 450px;">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                <div
+                    style="width: 50px; height: 50px; background: rgba(var(--primary-rgb), 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 1.5rem;">
+                    <i class="fas fa-file-export"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 1.25rem;">Confirm Generation</h3>
+                    <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">Review your settings before proceeding.</p>
+                </div>
+            </div>
+
+            <div
+                style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 1rem; margin-bottom: 2rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                    <span style="opacity: 0.6;">Period:</span>
+                    <span id="confirm-period" style="font-weight: 500;">-</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                    <span style="opacity: 0.6;">Filename:</span>
+                    <span id="confirm-filename" style="font-weight: 500; color: var(--primary);">-</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                    <span style="opacity: 0.6;">Projects:</span>
+                    <span id="confirm-projects" style="font-weight: 500;">-</span>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button type="button" class="btn-secondary" id="cancel-gen" style="flex: 1;">Cancel</button>
+                <button type="button" class="btn-primary animate-shine" id="confirm-gen" style="flex: 2;">Generate
+                    Now</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="success-modal" class="modal-overlay">
+        <div class="modal-content glass animate-scale-up" style="max-width: 450px; text-align: center;">
+            <div
+                style="width: 70px; height: 70px; background: rgba(var(--success-rgb, 16, 185, 129), 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--success); font-size: 2.5rem; margin: 0 auto 1.5rem;">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h2 style="margin-bottom: 0.5rem; color: var(--success);">Generation Success!</h2>
+            <p id="success-message" style="opacity: 0.7; font-size: 0.95rem; margin-bottom: 2rem;">Your progress report
+                has been successfully generated and saved to your Downloads folder.</p>
+            <button type="button" class="btn-primary animate-shine" style="width: 100%;"
+                onclick="document.getElementById('success-modal').style.display='none'">Awesome!</button>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="error-modal" class="modal-overlay">
+        <div class="modal-content glass animate-scale-up" style="max-width: 450px; text-align: center;">
+            <div
+                style="width: 70px; height: 70px; background: rgba(var(--error-rgb, 239, 68, 68), 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--error); font-size: 2.5rem; margin: 0 auto 1.5rem;">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h2 style="margin-bottom: 0.5rem; color: var(--error);">Oops! Something Failed</h2>
+            <p id="error-message" style="opacity: 0.7; font-size: 0.95rem; margin-bottom: 2rem;">There was an issue
+                processing your request. Please check your settings and try again.</p>
+            <div style="display: flex; gap: 1rem;">
+                <button type="button" class="btn-secondary" style="flex: 1;"
+                    onclick="document.getElementById('error-modal').style.display='none'">Dismiss</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Onboarding Modal (Carousel Manual) -->
+    <div id="onboarding-modal" class="modal-overlay">
+        <div class="modal-content glass animate-scale-up"
+            style="max-width: 600px; padding: 0; overflow: hidden; position: relative; border-radius: 20px;">
+            <div id="carousel-container"
+                style="display: flex; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); width: 700%;">
+
+                <!-- Step 1: Welcome -->
+                <div class="carousel-slide" style="flex: 1; padding: 2rem 3rem; text-align: center;">
+                    <img src="assets/manual/step1.png" alt="Welcome"
+                        style="width: 100%; max-height: 180px; object-fit: contain; margin-bottom: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
+                    <h2 style="margin-bottom: 0.8rem;">Welcome to Git Report v2</h2>
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Let's quickly walk through the new
+                        automation features to make
+                        your progress reports effortlessly across multiple projects.</p>
+                </div>
+
+                <!-- Step 2: Employee Info -->
+                <div class="carousel-slide" style="flex: 1; padding: 2rem 3rem; text-align: center;">
+                    <img src="assets/manual/step2.png" alt="Identity"
+                        style="width: 100%; max-height: 180px; object-fit: contain; margin-bottom: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
+                    <h2 style="margin-bottom: 0.8rem;">1. Set Your Identity</h2>
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Fill in your **Employee Name** and
+                        **ID**. Be sure to use
+                        your **Git Email Filter** (e.g., your email username) so the tool finds only your work.</p>
+                </div>
+
+                <!-- Step 3: Projects -->
+                <div class="carousel-slide" style="flex: 1; padding: 2rem 3rem; text-align: center;">
+                    <img src="assets/manual/step3.png" alt="Projects"
+                        style="width: 100%; max-height: 180px; object-fit: contain; margin-bottom: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
+                    <h2 style="margin-bottom: 0.8rem;">2. Add Projects</h2>
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Paste the **Local Repository Path**
+                        of each project you
+                        worked on. This builds your master project list for the whole app.</p>
+                </div>
+
+                <!-- Step 4: Project Linking -->
+                <div class="carousel-slide" style="flex: 1; padding: 2rem 3rem; text-align: center;">
+                    <img src="assets/manual/step4.png" alt="Linking"
+                        style="width: 100%; max-height: 180px; object-fit: contain; margin-bottom: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
+                    <h2 style="margin-bottom: 0.8rem;">3. Dropdown Linking</h2>
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Default tasks now use a **Project
+                        Dropdown**. Selecting a
+                        project
+                        automatically fills and locks the **Supervisor** field for perfect consistency.</p>
+                </div>
+
+                <!-- Step 5: Defaults & Holidays -->
+                <div class="carousel-slide" style="flex: 1; padding: 2rem 3rem; text-align: center;">
+                    <img src="assets/manual/step5.png" alt="Colors"
+                        style="width: 100%; max-height: 180px; object-fit: contain; margin-bottom: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
+                    <h2 style="margin-bottom: 0.8rem;">4. Color-Coded Reports</h2>
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Categorize tasks as **Meeting
+                        (Blue)**, **Database
+                        (Gray)**, or
+                        **Holiday (Green)**. The generated Excel will be automatically highlighted!</p>
+                </div>
+
+                <!-- Step 6: Remarks -->
+                <div class="carousel-slide" style="flex: 1; padding: 2rem 3rem; text-align: center;">
+                    <img src="assets/manual/step6.png" alt="Tasks"
+                        style="width: 100%; max-height: 180px; object-fit: contain; margin-bottom: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
+                    <h2 style="margin-bottom: 0.8rem;">5. Tasks & Remarks</h2>
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Add recurring tasks with custom
+                        **Remarks**. Use the
+                        **Include to Report** checkbox to toggle rows on/off without deleting them.</p>
+                </div>
+
+                <!-- Step 7: Finish -->
+                <div class="carousel-slide" style="flex: 1; padding: 2rem 3rem; text-align: center;">
+                    <img src="assets/manual/step7.png" alt="Finish"
+                        style="width: 100%; max-height: 180px; object-fit: contain; margin-bottom: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
+                    <h2 style="margin-bottom: 0.8rem; color: var(--success);">Ready to Go!</h2>
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Click **Generate Now** to build your
+                        professional Excel
+                        report. Your settings are autosaved for next time. Ready?</p>
+                </div>
+            </div>
+
+            <!-- Carousel Controls -->
+            <div
+                style="padding: 1.5rem 3rem; background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+                <div id="carousel-dots" style="display: flex; gap: 0.5rem;">
+                    <div class="dot active"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+                <div style="display: flex; gap: 1rem;">
+                    <button type="button" id="carousel-prev" class="btn-secondary"
+                        style="display: none; height: 40px; padding: 0 1.2rem;">Back</button>
+                    <button type="button" id="carousel-next" class="btn-primary"
+                        style="height: 40px; padding: 0 1.5rem;">Next</button>
+                    <button type="button" id="carousel-finish" class="btn-primary animate-shine"
+                        style="display: none; height: 40px; padding: 0 1.5rem;">Done!</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>

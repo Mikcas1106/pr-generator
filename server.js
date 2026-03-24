@@ -17,6 +17,7 @@ app.use(bodyParser.json());
 app.use(express.static('public'));
 
 app.post('/generate-report', async (req, res) => {
+    console.log("DEBUG: Starting report generation", req.body);
     const { 
         employeeName,
         employeeId,
@@ -24,9 +25,12 @@ app.post('/generate-report', async (req, res) => {
         until, 
         author,
         outputFilename,
-        projects 
+        projects,
+        holidayDates,
+        defaultTasks
     } = req.body;
 
+    console.log("DEBUG: defaultTasks received:", defaultTasks);
     if (!outputFilename) {
         return res.status(400).json({ success: false, message: "Output filename is required." });
     }
@@ -36,7 +40,14 @@ app.post('/generate-report', async (req, res) => {
     }
 
     const downloadsPath = path.join(os.homedir(), 'Downloads');
-    const finalOutputPath = path.join(downloadsPath, outputFilename.endsWith('.xlsx') ? outputFilename : `${outputFilename}.xlsx`);
+    let baseFilename = outputFilename.endsWith('.xlsx') ? outputFilename.slice(0, -5) : outputFilename;
+    let finalOutputPath = path.join(downloadsPath, `${baseFilename}.xlsx`);
+    let counter = 1;
+
+    while (fs.existsSync(finalOutputPath)) {
+        finalOutputPath = path.join(downloadsPath, `${baseFilename} (${counter}).xlsx`);
+        counter++;
+    }
 
     let authorFilterStr = '';
     if (author) {
@@ -107,9 +118,49 @@ app.post('/generate-report', async (req, res) => {
         }
 
         const sortedDates = Object.keys(allCommitsByDate).sort();
+
+        const parseYYYYMMDD = (str) => {
+            const [y, m, d] = str.split('-').map(Number);
+            return new Date(y, m - 1, d);
+        };
+        const formatYYYYMMDD = (date) => {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        };
+
+        let startDateStr = since || (sortedDates.length > 0 ? sortedDates[0] : null);
+        let endDateStr = until || (sortedDates.length > 0 ? sortedDates[sortedDates.length - 1] : null);
+
+        let allDaysInRange = [];
+        if (startDateStr && endDateStr) {
+            let curr = parseYYYYMMDD(startDateStr);
+            let end = parseYYYYMMDD(endDateStr);
+            while (curr <= end) {
+                const dayOfWeek = curr.getDay();
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                    allDaysInRange.push(formatYYYYMMDD(curr));
+                }
+                curr.setDate(curr.getDate() + 1);
+            }
+        }
         
-        if (sortedDates.length === 0) {
-            return res.status(404).json({ success: false, message: "No commits found for the specified period across any projects." });
+        sortedDates.forEach(d => {
+            if (!allDaysInRange.includes(d)) {
+                allDaysInRange.push(d);
+            }
+        });
+        
+        allDaysInRange.sort();
+
+        if (allDaysInRange.length === 0) {
+            return res.status(404).json({ success: false, message: "No valid dates found for the specified period." });
+        }
+
+        let holidays = [];
+        if (holidayDates) {
+            holidays = holidayDates.split(',').map(d => d.trim()).filter(d => d);
         }
 
         const formatDate = (dateStr) => {
@@ -129,7 +180,7 @@ app.post('/generate-report', async (req, res) => {
 
         sheet.addRow(['Employee', employeeName]);
         sheet.addRow(['Employee ID', employeeId]);
-        sheet.addRow(['Coverage Date', `${formatDate(sortedDates[0])} - ${formatDate(sortedDates[sortedDates.length - 1])}`]);
+        sheet.addRow(['Coverage Date', `${formatDate(allDaysInRange[0])} - ${formatDate(allDaysInRange[allDaysInRange.length - 1])}`]);
         sheet.addRow([]);
 
         const headerRow = sheet.addRow([
@@ -141,26 +192,77 @@ app.post('/generate-report', async (req, res) => {
             cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
         });
 
-        sortedDates.forEach(dStr => {
+        allDaysInRange.forEach(dStr => {
             const dFmt = formatDate(dStr);
-            allCommitsByDate[dStr].forEach((commit, index) => {
-                const dateToShow = index === 0 ? dFmt : "";
-                const row = sheet.addRow([
-                    dateToShow,
-                    commit.subject,
-                    dFmt,
-                    dFmt,
-                    'Done',
-                    '',
-                    commit.projectName,
-                    commit.supervisorName,
-                    commit.link
-                ]);
-                
-                row.eachCell((cell) => {
-                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+            let entriesForDay = [];
+            
+            if (holidays.includes(dStr)) {
+                entriesForDay.push({
+                    subject: 'Holiday',
+                    projectName: '',
+                    supervisorName: '',
+                    remarks: '',
+                    link: '',
+                    taskType: 'holiday'
                 });
-            });
+            } else {
+                if (allCommitsByDate[dStr]) {
+                    entriesForDay.push(...allCommitsByDate[dStr]);
+                }
+                
+                const dObj = parseYYYYMMDD(dStr);
+                const dayOfWeek = dObj.getDay().toString();
+
+                if (defaultTasks && Array.isArray(defaultTasks)) {
+                    defaultTasks.forEach(task => {
+                        if (task.taskDay === dayOfWeek || task.taskDay === 'all') {
+                            entriesForDay.push({
+                                subject: task.taskName,
+                                projectName: task.taskProject || '',
+                                supervisorName: task.taskSupervisor || '',
+                                remarks: task.taskRemarks || '',
+                                link: '',
+                                taskType: task.taskType || 'normal'
+                            });
+                        }
+                    });
+                }
+            }
+
+            if (entriesForDay.length > 0) {
+                entriesForDay.forEach((entry, index) => {
+                    const dateToShow = index === 0 ? dFmt : "";
+                    const rowValue = [
+                        dateToShow,
+                        entry.subject,
+                        dFmt,
+                        dFmt,
+                        'Done',
+                        entry.remarks || '',
+                        entry.projectName || '',
+                        entry.supervisorName || '',
+                        entry.link || ''
+                    ];
+                    const row = sheet.addRow(rowValue);
+                    
+                    // Apply background color based on taskType
+                    let fillColor = null;
+                    if (entry.taskType === 'meeting') fillColor = 'FFADD8E6'; // Light Blue
+                    else if (entry.taskType === 'database') fillColor = 'FFD3D3D3'; // Light Gray
+                    else if (entry.taskType === 'holiday') fillColor = 'FF90EE90'; // Light Green
+
+                    row.eachCell((cell) => {
+                        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                        if (fillColor) {
+                            cell.fill = {
+                                type: 'pattern',
+                                pattern: 'solid',
+                                fgColor: { argb: fillColor }
+                            };
+                        }
+                    });
+                });
+            }
         });
 
         sheet.columns.forEach((column, i) => {
@@ -194,17 +296,7 @@ app.post('/generate-report', async (req, res) => {
     }
 });
 
-app.post('/clone-repo', (req, res) => {
-    const { repoUrl, targetDir } = req.body;
-    if (!repoUrl) return res.status(400).json({ success: false, message: "Repo URL is required." });
-    const parentDir = path.dirname(targetDir);
-    if (!fs.existsSync(parentDir)) fs.mkdirSync(parentDir, { recursive: true });
-    const cmd = `git clone "${repoUrl}" "${targetDir}"`;
-    exec(cmd, { cwd: parentDir }, (error, stdout, stderr) => {
-        if (error) return res.status(500).json({ success: false, message: "Clone failed.", error: stderr });
-        res.json({ success: true, message: "Repository cloned successfully!", output: stdout });
-    });
-});
+
 
 app.use((err, req, res, next) => {
     console.error(err.stack);
