@@ -42,7 +42,65 @@ function finishOnboarding() {
     localStorage.setItem('onboarding_complete', 'true');
 }
 
+function initParticles() {
+    const container = document.getElementById('particles');
+    if (!container) return;
+    
+    const iconPool = [
+        { icon: 'fa-php', color: '#777bb3' },
+        { icon: 'fa-laravel', color: '#ff2d20' },
+        { icon: 'fa-js', color: '#f7df1e' },
+        { icon: 'fa-python', color: '#3776ab' },
+        { icon: 'fa-react', color: '#61dafb' },
+        { icon: 'fa-docker', color: '#2496ed' },
+        { icon: 'fa-node-js', color: '#339933' },
+        { icon: 'fa-github', color: '#ffffff' },
+        { icon: 'fa-gitlab', color: '#fc6d26' },
+        { icon: 'fa-rust', color: '#dea584' },
+        { icon: 'fa-java', color: '#007396' },
+        { icon: 'fa-golang', color: '#00add8' },
+        { icon: 'fa-file-csv', color: '#1d6f42' }
+    ];
+
+    for (let i = 0; i < 45; i++) {
+        const p = document.createElement('div');
+        const isIcon = Math.random() > 0.5;
+        
+        if (isIcon) {
+            const poolItem = iconPool[Math.floor(Math.random() * iconPool.length)];
+            p.className = 'dev-icon';
+            p.innerHTML = `<i class="fab ${poolItem.icon}"></i>`;
+            p.style.color = poolItem.color;
+        } else {
+            p.className = 'particle';
+            const size = Math.random() * 3 + 1;
+            p.style.width = `${size}px`;
+            p.style.height = `${size}px`;
+        }
+        
+        p.style.left = `${Math.random() * 100}%`;
+        p.style.animationDelay = `${Math.random() * 25}s`;
+        p.style.animationDuration = `${15 + Math.random() * 30}s`;
+        container.appendChild(p);
+    }
+}
+
+function loadState() {
+    const saved = localStorage.getItem('pr_generator_state');
+    if (saved) {
+        const state = JSON.parse(saved);
+        document.getElementById('employeeName').value = state.employeeName || '';
+        document.getElementById('employeeId').value = state.employeeId || '';
+        document.getElementById('author').value = state.author || '';
+        document.getElementById('since').value = state.since || '';
+        document.getElementById('until').value = state.until || '';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    loadState();
+    initParticles();
+
     if (!localStorage.getItem('onboarding_complete')) {
         document.getElementById('onboarding-modal').style.display = 'flex';
     }
@@ -50,6 +108,39 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('carousel-next').addEventListener('click', nextStep);
     document.getElementById('carousel-prev').addEventListener('click', prevStep);
     document.getElementById('carousel-finish').addEventListener('click', finishOnboarding);
+
+    const confirmModal = document.getElementById('confirm-modal');
+    const confirmTitle = document.getElementById('confirm-title');
+    const confirmMessage = document.getElementById('confirm-message');
+    const confirmOk = document.getElementById('confirm-ok');
+    const confirmCancel = document.getElementById('confirm-cancel');
+    let confirmCallback = null;
+
+    window.showConfirm = function(title, message, callback) {
+        confirmTitle.textContent = title;
+        confirmMessage.textContent = message;
+        confirmCallback = callback;
+        confirmModal.style.display = 'flex';
+    };
+
+    confirmCancel.addEventListener('click', () => {
+        confirmModal.style.display = 'none';
+        confirmCallback = null;
+    });
+
+    confirmOk.addEventListener('click', () => {
+        if (confirmCallback) confirmCallback();
+        confirmModal.style.display = 'none';
+        confirmCallback = null;
+    });
+
+    // Close on overlay click
+    confirmModal.addEventListener('click', (e) => {
+        if (e.target === confirmModal) {
+            confirmModal.style.display = 'none';
+            confirmCallback = null;
+        }
+    });
 });
 
 function showTab(tab, btn) {
@@ -126,6 +217,7 @@ function saveState() {
             taskSupervisor: entry.querySelector('.taskSupervisor').value,
             taskRemarks: entry.querySelector('.taskRemarks').value,
             taskEnabled: entry.querySelector('.taskEnabled').checked,
+            taskOnlyIfProjectActive: entry.querySelector('.taskOnlyIfProjectActive').checked,
             taskType: entry.querySelector('.taskType').value
         })),
         projects: projects
@@ -194,42 +286,53 @@ function addProjectEntry(data = { repoPath: '', projectName: '', supervisorName:
     newEntry.className = 'project-entry glass';
     newEntry.innerHTML = `
         <button type="button" class="remove-project">×</button>
-        <h3 class="full-width" style="margin-top:0; color:var(--primary); font-size:1rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem; margin-bottom: 1rem;">
+        <h3 class="full-width" style="margin-top:0; color:var(--primary); font-size:1rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
             <i class="fas fa-folder-open"></i> Project Details
         </h3>
+        
+        <!-- Local Section -->
         <div class="input-group full-width">
-            <label>Local Project Folder Directory</label>
+            <label><i class="fas fa-desktop"></i> Local Project Folder Directory</label>
             <input type="text" class="repoPath" placeholder="C:\\path\\to\\your\\repository" value="${data.repoPath}">
         </div>
+
         <div class="input-group">
-            <label>Project Name</label>
+            <label><i class="fas fa-tag"></i> Name</label>
             <input type="text" class="projectName" placeholder="Project Name" value="${data.projectName}">
         </div>
         <div class="input-group">
-            <label>Supervisor Name</label>
+            <label><i class="fas fa-user-shield"></i> Supervisor</label>
             <input type="text" class="supervisorName" placeholder="Supervisor Name" value="${data.supervisorName}">
         </div>
+
+        <!-- Git Identifier Section (2x2 Grid feel) -->
         <div class="input-group">
-            <label>Platform</label>
+            <label><i class="fab fa-git-alt"></i> Platform</label>
             <select class="repoPlatform">
                 <option value="bitbucket" ${data.repoPlatform === 'bitbucket' ? 'selected' : ''}>Bitbucket</option>
                 <option value="github" ${data.repoPlatform === 'github' ? 'selected' : ''}>GitHub</option>
             </select>
         </div>
         <div class="input-group">
-            <label>Workspace / User</label>
-            <input type="text" class="repoWorkspace" placeholder="e.g., telcomliveph" value="${data.repoWorkspace || ''}">
+            <label><i class="fas fa-users-gear"></i> Workspace</label>
+            <input type="text" class="repoWorkspace" placeholder="telcomliveph" value="${data.repoWorkspace || ''}">
         </div>
         <div class="input-group full-width">
-            <label>Repository Name</label>
-            <input type="text" class="repoName" placeholder="e.g., ibppms" value="${data.repoName || ''}">
+            <label><i class="fas fa-code-branch"></i> Repository Name</label>
+            <input type="text" class="repoName" placeholder="e.g., project-backend" value="${data.repoName || ''}">
         </div>
     `;
     container.appendChild(newEntry);
 
     newEntry.querySelector('.remove-project').addEventListener('click', () => {
-        newEntry.remove();
-        saveState();
+        const currentName = newEntry.querySelector('.projectName').value || 'this project';
+        showConfirm('Remove Project', `Remove project "${currentName}"?`, () => {
+            newEntry.classList.add('removing');
+            setTimeout(() => {
+                newEntry.remove();
+                saveState();
+            }, 350);
+        });
     });
 
     // Auto-save on input change
@@ -315,9 +418,21 @@ function addDefaultTaskEntry(data = { taskName: '', taskDay: '1', taskProject: '
                 <input type="text" class="taskRemarks" placeholder="Remarks" value="${data.taskRemarks || ''}">
             </div>
         </div>
-        <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.8rem;">
-            <input type="checkbox" class="taskEnabled" ${data.taskEnabled !== false ? 'checked' : ''} style="cursor: pointer; width: 18px; height: 18px;">
-            <label style="margin: 0; font-size: 0.9rem; opacity: 0.9; cursor: pointer; color: var(--primary);">Include to Report</label>
+        <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 2rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem;">
+            <label class="switch-container">
+                <div class="switch">
+                    <input type="checkbox" class="taskEnabled" ${data.taskEnabled !== false ? 'checked' : ''}>
+                    <span class="slider"></span>
+                </div>
+                <span class="switch-label">Include to Report</span>
+            </label>
+            <label class="switch-container">
+                <div class="switch">
+                    <input type="checkbox" class="taskOnlyIfProjectActive" ${data.taskOnlyIfProjectActive === true ? 'checked' : ''}>
+                    <span class="slider"></span>
+                </div>
+                <span class="switch-label">Only if project has commits</span>
+            </label>
         </div>
     `;
     
@@ -334,8 +449,14 @@ function addDefaultTaskEntry(data = { taskName: '', taskDay: '1', taskProject: '
     });
 
     newEntry.querySelector('.remove-task').addEventListener('click', () => {
-        newEntry.remove();
-        saveState();
+        const currentName = newEntry.querySelector('.taskName').value || 'this task';
+        showConfirm('Remove Task', `Remove default task "${currentName}"?`, () => {
+            newEntry.classList.add('removing');
+            setTimeout(() => {
+                newEntry.remove();
+                saveState();
+            }, 350);
+        });
     });
 
     newEntry.querySelectorAll('input, select').forEach(input => {
@@ -363,6 +484,90 @@ if (addDefaultTaskBtn) {
 window.addEventListener('DOMContentLoaded', loadState);
 
 // Smart Date Shortcuts — Week of current month (Mon–Fri)
+let loadingInterval = null;
+const loadingMessages = [
+    "Initializing Git engine...",
+    "Scanning local repositories...",
+    "Cloning metadata...",
+    "Filtering authors...",
+    "Analyzing commits...",
+    "Detecting holidays...",
+    "Calculating progress...",
+    "Almost there...",
+    "Finalizing report layout..."
+];
+
+function startLoadingAnimation(title = "Processing Repositories") {
+    const modal = document.getElementById('loading-modal');
+    const bar = document.getElementById('progress-bar');
+    const status = document.getElementById('loading-status');
+    const titleEl = document.getElementById('loading-title');
+    const techIcon = document.getElementById('loader-tech-icon');
+    
+    titleEl.textContent = title;
+    modal.style.display = 'flex';
+    bar.style.width = '0%';
+    
+    let progress = 0;
+    let msgIndex = 0;
+    let iconIndex = 0;
+    
+    const loaderIcons = [
+        { icon: 'fa-microchip', color: 'var(--primary)', type: 'fas' },
+        { icon: 'fa-php', color: '#777bb3', type: 'fab' },
+        { icon: 'fa-laravel', color: '#ff2d20', type: 'fab' },
+        { icon: 'fa-python', color: '#3776ab', type: 'fab' },
+        { icon: 'fa-js', color: '#f7df1e', type: 'fab' },
+        { icon: 'fa-react', color: '#61dafb', type: 'fab' },
+        { icon: 'fa-docker', color: '#2496ed', type: 'fab' },
+        { icon: 'fa-node-js', color: '#339933', type: 'fab' },
+        { icon: 'fa-rust', color: '#dea584', type: 'fab' }
+    ];
+    
+    loadingInterval = setInterval(() => {
+        // Slowing down animation
+        if (progress < 40) progress += Math.random() * 5;
+        else if (progress < 70) progress += Math.random() * 2;
+        else if (progress < 95) progress += Math.random() * 0.5;
+        
+        bar.style.width = `${progress}%`;
+        
+        // Rotate messages every few seconds
+        if (Math.random() > 0.9) {
+            msgIndex = (msgIndex + 1) % loadingMessages.length;
+            status.textContent = loadingMessages[msgIndex];
+        }
+
+        // Smooth Icon Swap
+        if (Math.random() > 0.9) { // ~Every 1.5sec
+            iconIndex = (iconIndex + 1) % loaderIcons.length;
+            const item = loaderIcons[iconIndex];
+
+            techIcon.classList.add('swapping');
+            
+            setTimeout(() => {
+                techIcon.innerHTML = `<i class="${item.type} ${item.icon}"></i>`;
+                techIcon.style.color = item.color;
+                techIcon.style.filter = `drop-shadow(0 0 20px ${item.color})`;
+                techIcon.classList.remove('swapping');
+            }, 500);
+        }
+    }, 150);
+}
+
+function stopLoadingAnimation() {
+    const modal = document.getElementById('loading-modal');
+    const bar = document.getElementById('progress-bar');
+    
+    clearInterval(loadingInterval);
+    bar.style.width = '100%';
+    
+    setTimeout(() => {
+        modal.style.display = 'none';
+        bar.style.width = '0%';
+    }, 400);
+}
+
 document.querySelectorAll('.btn-shortcut').forEach(btn => {
     btn.addEventListener('click', (e) => {
         const range = e.target.getAttribute('data-range');
@@ -436,11 +641,12 @@ async function handleFormSubmit(e) {
             taskSupervisor: entry.querySelector('.taskSupervisor').value,
             taskRemarks: entry.querySelector('.taskRemarks').value,
             taskEnabled: entry.querySelector('.taskEnabled').checked,
+            taskOnlyIfProjectActive: entry.querySelector('.taskOnlyIfProjectActive').checked,
             taskType: entry.querySelector('.taskType').value
         })).filter(t => t.taskName.trim() !== '' && t.taskEnabled)
     };
 
-    document.getElementById('loading-modal').style.display = 'flex';
+    startLoadingAnimation("Analyzing History");
     try {
         const response = await fetch('http://localhost:3001/preview-data', {
             method: 'POST',
@@ -459,7 +665,7 @@ async function handleFormSubmit(e) {
     } catch (err) {
         log("Error: " + err.message, "error");
     } finally {
-        document.getElementById('loading-modal').style.display = 'none';
+        stopLoadingAnimation();
     }
 }
 
@@ -477,7 +683,7 @@ function renderPreviewTable() {
 
         if (isEmptyDay) {
             tr.innerHTML = `
-                <td><input type="checkbox" disabled></td>
+                <td></td>
                 <td>${row.dateFmt}</td>
                 <td>
                     <span style="display:inline-flex; align-items:center; gap:0.5rem;">
@@ -499,10 +705,27 @@ function renderPreviewTable() {
                 `<option value="${o.value}" ${row.taskType === o.value ? 'selected' : ''}>${o.label}</option>`
             ).join('');
 
+            const gitUrl = (row.hash && row.repoPlatform && row.repoWorkspace && row.repoName) ? (
+                row.repoPlatform === 'bitbucket' 
+                    ? `https://bitbucket.org/${row.repoWorkspace}/${row.repoName}/commits/${row.hash}`
+                    : `https://github.com/${row.repoWorkspace}/${row.repoName}/commit/${row.hash}`
+            ) : null;
+
             tr.innerHTML = `
-                <td><input type="checkbox" class="row-include" ${row.included ? 'checked' : ''}></td>
+                <td style="text-align: center; vertical-align: middle;">
+                    <input type="checkbox" class="row-include" ${row.included ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+                </td>
                 <td>${row.dateFmt}</td>
-                <td>${row.subject}</td>
+                <td>
+                    <div style="display: flex; align-items: start; gap: 0.8rem;">
+                        <span style="flex: 1;">${row.subject}</span>
+                        ${gitUrl ? `
+                            <a href="${gitUrl}" target="_blank" class="commit-link" title="Source: ${row.hash.substring(0,8)}">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        ` : ''}
+                    </div>
+                </td>
                 <td>${row.projectName}</td>
                 <td>${row.supervisorName}</td>
                 <td>
@@ -510,7 +733,9 @@ function renderPreviewTable() {
                         ${optionsHtml}
                     </select>
                 </td>
-                <td><input type="text" class="row-remarks" value="${row.remarks}" placeholder="Add remarks..."></td>
+                <td>
+                    <textarea class="row-remarks" placeholder="Add remarks..." rows="1" style="height:auto; overflow-y:hidden; resize:none;">${row.remarks}</textarea>
+                </td>
             `;
             tr.querySelector('.row-include').addEventListener('change', (e) => {
                 currentPreviewData[index].included = e.target.checked;
@@ -522,8 +747,18 @@ function renderPreviewTable() {
                 tr.className = `type-${e.target.value}`;
                 if (!currentPreviewData[index].included) tr.classList.add('row-excluded');
             });
-            tr.querySelector('.row-remarks').addEventListener('input', (e) => {
+            const remarksArea = tr.querySelector('.row-remarks');
+            const autoGrow = (el) => {
+                el.style.height = 'auto';
+                el.style.height = (el.scrollHeight) + 'px';
+            };
+            
+            // Initial sizing
+            autoGrow(remarksArea);
+
+            remarksArea.addEventListener('input', (e) => {
                 currentPreviewData[index].remarks = e.target.value;
+                autoGrow(e.target);
             });
         }
         body.appendChild(tr);
@@ -600,8 +835,7 @@ document.getElementById('export-btn').addEventListener('click', async () => {
     };
 
     log("Generating Excel file...", "info");
-    document.getElementById('loading-modal').style.display = 'flex';
-
+    startLoadingAnimation("Exporting Excel");
     try {
         const response = await fetch('http://localhost:3001/generate-report', {
             method: 'POST',
@@ -627,7 +861,7 @@ document.getElementById('export-btn').addEventListener('click', async () => {
     } catch (err) {
         log("Export Error: " + err.message, "error");
     } finally {
-        document.getElementById('loading-modal').style.display = 'none';
+        stopLoadingAnimation();
     }
 });
 

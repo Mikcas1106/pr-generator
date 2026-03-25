@@ -127,10 +127,14 @@ async function getLogData(params) {
 
     const cmd = `git log --all ${authorFilter} --no-merges --pretty=format:"%ad|%s|%H" --date=short ${sinceFilter} ${untilFilter}`;
     const allCommitsByDate = {}; 
+    const activeProjectNames = new Set();
 
     for (const project of projects) {
         const { repoPath, projectName, supervisorName, baseUrl } = project;
-        if (!repoPath || !fs.existsSync(repoPath)) continue;
+        if (!repoPath || !fs.existsSync(repoPath) || !fs.existsSync(path.join(repoPath, '.git'))) {
+            console.warn(`Skipping invalid repo path: ${repoPath}`);
+            continue;
+        }
 
         try {
             await execPromise('git fetch --all', { cwd: repoPath });
@@ -140,19 +144,25 @@ async function getLogData(params) {
         const lines = stdout.trim().split('\n');
         if (!lines || (lines.length === 1 && lines[0] === '')) continue;
 
+        activeProjectNames.add(projectName);
+
         lines.forEach(line => {
             const parts = line.split('|');
             if (parts.length < 3) return;
             const dateStr = parts[0];
-            const hashVal = parts[parts.length - 1];
-            const subject = parts.slice(1, -1).join('|');
+            const subject = parts[1];
+            const hash = parts[2];
+            
             if (!allCommitsByDate[dateStr]) allCommitsByDate[dateStr] = [];
             allCommitsByDate[dateStr].push({
                 subject,
-                link: `${baseUrl}${hashVal}`,
+                hash,
                 projectName,
                 supervisorName,
-                taskType: 'normal'
+                taskType: 'normal',
+                repoPlatform: project.repoPlatform,
+                repoWorkspace: project.repoWorkspace,
+                repoName: project.repoName
             });
         });
     }
@@ -205,7 +215,11 @@ async function getLogData(params) {
                 supervisorName: '',
                 remarks: '',
                 link: '',
-                taskType: 'holiday'
+                taskType: 'holiday',
+                hash: '', // Added hash
+                repoPlatform: '', // Added repoPlatform
+                repoWorkspace: '', // Added repoWorkspace
+                repoName: '' // Added repoName
             });
         } 
 
@@ -220,6 +234,11 @@ async function getLogData(params) {
             const dayOfWeek = dObj.getDay().toString();
             if (defaultTasks && Array.isArray(defaultTasks)) {
                 defaultTasks.forEach(task => {
+                    // Check if project is active if the toggle is on
+                    if (task.taskOnlyIfProjectActive && !activeProjectNames.has(task.taskProject)) {
+                        return; // Skip this task because project is inactive
+                    }
+
                     if (task.taskDay === dayOfWeek || task.taskDay === 'all') {
                         entriesForDay.push({
                             date: dStr,
@@ -228,8 +247,11 @@ async function getLogData(params) {
                             projectName: task.taskProject || '',
                             supervisorName: task.taskSupervisor || '',
                             remarks: task.taskRemarks || '',
-                            link: '',
-                            taskType: task.taskType || 'normal'
+                            taskType: task.taskType || 'normal',
+                            hash: '',
+                            repoPlatform: '',
+                            repoWorkspace: '',
+                            repoName: ''
                         });
                     }
                 });
@@ -244,8 +266,11 @@ async function getLogData(params) {
                 projectName: '',
                 supervisorName: '',
                 remarks: '',
-                link: '',
-                taskType: 'empty'
+                taskType: 'empty',
+                hash: '',
+                repoPlatform: '',
+                repoWorkspace: '',
+                repoName: ''
             });
         } else {
             reportRows.push(...entriesForDay);

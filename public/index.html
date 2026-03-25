@@ -8,6 +8,7 @@
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         .manual-container {
             color: var(--text-main);
@@ -67,13 +68,60 @@
             font-family: monospace;
             color: var(--secondary);
         }
+
+        /* Premium Manual Icons */
+        .manual-icon-container {
+            width: 100%;
+            height: 180px;
+            background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.1), rgba(236, 72, 153, 0.05));
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .manual-icon-container::before {
+            content: '';
+            position: absolute;
+            width: 150%;
+            height: 150%;
+            background: radial-gradient(circle at center, rgba(var(--primary-rgb), 0.1) 0%, transparent 70%);
+            animation: pulse-glow 4s infinite alternate;
+        }
+
+        @keyframes pulse-glow {
+            from {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+
+            to {
+                transform: scale(1.2);
+                opacity: 0.8;
+            }
+        }
+
+        .manual-icon {
+            font-size: 4.5rem;
+            color: var(--primary);
+            filter: drop-shadow(0 0 15px var(--primary-glow));
+            z-index: 1;
+        }
     </style>
 </head>
 
 <body>
     <div class="background-effects">
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
+        <div class="sci-fi-base git-pro-saas-theme"></div>
+        <div class="hologram-overlay"></div>
+        <div class="scanlines"></div>
+        <div class="particles" id="particles"></div>
+        <div class="vignette"></div>
     </div>
 
     <div class="container">
@@ -154,36 +202,41 @@
                                 <div id="projects-container" class="full-width">
                                     <div class="project-entry glass">
                                         <h3 class="full-width"
-                                            style="margin-top:0; color:var(--primary); font-size:1rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem; margin-bottom: 1rem;">
+                                            style="margin-top:0; color:var(--primary); font-size:1rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
                                             <i class="fas fa-folder-open"></i> Project Details
                                         </h3>
+
+                                        <!-- Local Section -->
                                         <div class="input-group full-width">
-                                            <label>Local Project Folder Directory</label>
+                                            <label><i class="fas fa-desktop"></i> Local Project Folder Directory</label>
                                             <input type="text" class="repoPath"
                                                 placeholder="C:\path\to\your\repository">
                                         </div>
+
                                         <div class="input-group">
-                                            <label>Project Name</label>
+                                            <label><i class="fas fa-tag"></i> Name</label>
                                             <input type="text" class="projectName" placeholder="Project Name">
                                         </div>
                                         <div class="input-group">
-                                            <label>Supervisor Name</label>
+                                            <label><i class="fas fa-user-shield"></i> Supervisor</label>
                                             <input type="text" class="supervisorName" placeholder="Supervisor Name">
                                         </div>
+
+                                        <!-- Git Identifier Section (2x2 Grid) -->
                                         <div class="input-group">
-                                            <label>Platform</label>
+                                            <label><i class="fab fa-git-alt"></i> Platform</label>
                                             <select class="repoPlatform">
                                                 <option value="bitbucket">Bitbucket</option>
                                                 <option value="github">GitHub</option>
                                             </select>
                                         </div>
                                         <div class="input-group">
-                                            <label>Workspace / User</label>
-                                            <input type="text" class="repoWorkspace" placeholder="e.g., telcomliveph">
+                                            <label><i class="fas fa-users-gear"></i> Workspace</label>
+                                            <input type="text" class="repoWorkspace" placeholder="telcomliveph">
                                         </div>
                                         <div class="input-group full-width">
-                                            <label>Repository Name</label>
-                                            <input type="text" class="repoName" placeholder="e.g., ibppms">
+                                            <label><i class="fas fa-code-branch"></i> Repository Name</label>
+                                            <input type="text" class="repoName" placeholder="e.g., project-backend">
                                         </div>
                                     </div>
                                 </div>
@@ -268,16 +321,29 @@
     <!-- Loading Modal -->
     <div id="loading-modal" class="modal-overlay">
         <div class="modal-content glass animate-scale-up"
-            style="max-width: 400px; text-align: center; padding: 3rem 2rem;">
-            <div class="loading-spinner"></div>
-            <h2 style="margin-bottom: 0.5rem; color: var(--primary);">Generating Report</h2>
-            <p style="opacity: 0.7; font-size: 0.95rem;">Please wait while we fetch your commits and build your Excel
-                file...</p>
+            style="max-width: 450px; text-align: center; padding: 3.5rem 2.5rem;">
+            <div class="loader-container" style="margin-bottom: 2rem;">
+                <div class="loader-ring"></div>
+                <div class="loader-ring"></div>
+                <div class="loader-ring"></div>
+                <div class="loader-icon" id="loader-tech-icon"><i class="fas fa-microchip"></i></div>
+            </div>
+            <h2 id="loading-title" style="margin-bottom: 0.5rem; color: var(--primary);">Processing Repositories</h2>
+            <p id="loading-status" style="opacity: 0.7; font-size: 0.95rem; min-height: 1.4em;">Initializing engine...
+            </p>
+
+            <!-- Progress Bar -->
+            <div class="progress-container"
+                style="margin-top: 2rem; background: rgba(0,0,0,0.2); height: 6px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border);">
+                <div id="progress-bar"
+                    style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); box-shadow: 0 0 10px var(--primary-glow); transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);">
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Confirmation Modal -->
-    <div id="confirm-modal" class="modal-overlay">
+    <!-- Generation Confirmation Modal (Optional Feature) -->
+    <div id="generation-confirm-modal" class="modal-overlay">
         <div class="modal-content glass animate-scale-up" style="max-width: 450px;">
             <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
                 <div
@@ -355,74 +421,83 @@
 
                 <!-- Step 1: Welcome -->
                 <div class="carousel-slide" style="flex: 1; padding: 2rem 3rem; text-align: center;">
-                    <img src="assets/manual/step1.png" alt="Welcome"
-                        style="width: 100%; max-height: 180px; object-fit: contain; margin-bottom: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
-                    <h2 style="margin-bottom: 0.8rem;">Welcome to Git Report v2</h2>
+                    <div class="manual-icon-container">
+                        <i class="fas fa-rocket manual-icon"></i>
+                    </div>
+                    <h2 style="margin-bottom: 0.8rem;">Welcome to Git Report v2.1</h2>
                     <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Let's quickly walk through the new
                         automation features to make
                         your progress reports effortlessly across multiple projects.</p>
                 </div>
 
-                <!-- Step 2: Employee Info -->
+                <!-- Step 2: Identify Yourself -->
                 <div class="carousel-slide" style="flex: 1; padding: 2rem 3rem; text-align: center;">
-                    <img src="assets/manual/step2.png" alt="Identity"
-                        style="width: 100%; max-height: 180px; object-fit: contain; margin-bottom: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
-                    <h2 style="margin-bottom: 0.8rem;">1. Set Your Identity</h2>
-                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Fill in your **Employee Name** and
-                        **ID**. Be sure to use
-                        your **Git Email Filter** (e.g., your email username) so the tool finds only your work.</p>
+                    <div class="manual-icon-container"
+                        style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(16, 185, 129, 0.05));">
+                        <i class="fas fa-id-card manual-icon" style="color: #10b981;"></i>
+                    </div>
+                    <h2 style="margin-bottom: 0.8rem;">1. Identify Yourself</h2>
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Fill in the **Employee Information**
+                        section. The **Git Email Filter** must match the email you use for your commits (e.g., **git
+                        config user.email**).</p>
                 </div>
 
-                <!-- Step 3: Projects -->
+                <!-- Step 3: Connect Your Projects -->
                 <div class="carousel-slide" style="flex: 1; padding: 2rem 3rem; text-align: center;">
-                    <img src="assets/manual/step3.png" alt="Projects"
-                        style="width: 100%; max-height: 180px; object-fit: contain; margin-bottom: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
-                    <h2 style="margin-bottom: 0.8rem;">2. Add Projects</h2>
-                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Paste the **Local Repository Path**
-                        of each project you
-                        worked on. This builds your master project list for the whole app.</p>
+                    <div class="manual-icon-container"
+                        style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(239, 68, 68, 0.05));">
+                        <i class="fas fa-folder-plus manual-icon" style="color: #ef4444;"></i>
+                    </div>
+                    <h2 style="margin-bottom: 0.8rem;">2. Connect Your Projects</h2>
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Add your local repository paths. Use
+                        the full directory path (e.g., **C:\\Projects\\my-repo**). The tool will automatically detect
+                        the Git history.</p>
                 </div>
 
-                <!-- Step 4: Project Linking -->
+                <!-- Step 4: Setup Recurring Tasks -->
                 <div class="carousel-slide" style="flex: 1; padding: 2rem 3rem; text-align: center;">
-                    <img src="assets/manual/step4.png" alt="Linking"
-                        style="width: 100%; max-height: 180px; object-fit: contain; margin-bottom: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
-                    <h2 style="margin-bottom: 0.8rem;">3. Dropdown Linking</h2>
-                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Default tasks now use a **Project
-                        Dropdown**. Selecting a
-                        project
-                        automatically fills and locks the **Supervisor** field for perfect consistency.</p>
+                    <div class="manual-icon-container"
+                        style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(255, 193, 7, 0.05));">
+                        <i class="fas fa-tasks manual-icon" style="color: #ffc107;"></i>
+                    </div>
+                    <h2 style="margin-bottom: 0.8rem;">3. Setup Recurring Tasks</h2>
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">In the **Defaults & Holidays** tab,
+                        add your weekly meetings or standard tasks. Use the **Only if project has commits** toggle for
+                        accuracy.</p>
                 </div>
 
-                <!-- Step 5: Defaults & Holidays -->
+                <!-- Step 5: Review & Refine -->
                 <div class="carousel-slide" style="flex: 1; padding: 2rem 3rem; text-align: center;">
-                    <img src="assets/manual/step5.png" alt="Colors"
-                        style="width: 100%; max-height: 180px; object-fit: contain; margin-bottom: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
-                    <h2 style="margin-bottom: 0.8rem;">4. Color-Coded Reports</h2>
-                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Categorize tasks as **Meeting
-                        (Blue)**, **Database
-                        (Gray)**, or
-                        **Holiday (Green)**. The generated Excel will be automatically highlighted!</p>
+                    <div class="manual-icon-container"
+                        style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(0, 150, 136, 0.05));">
+                        <i class="fas fa-search-plus manual-icon" style="color: #009688;"></i>
+                    </div>
+                    <h2 style="margin-bottom: 0.8rem;">4. Review & Refine</h2>
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Click **Generate Now** to open the
+                        Preview Modal. Use the **Search Bar**, **toggle checkboxes**, or **edit remarks** directly in
+                        the table.</p>
                 </div>
 
-                <!-- Step 6: Remarks -->
+                <!-- Step 6: Export -->
                 <div class="carousel-slide" style="flex: 1; padding: 2rem 3rem; text-align: center;">
-                    <img src="assets/manual/step6.png" alt="Tasks"
-                        style="width: 100%; max-height: 180px; object-fit: contain; margin-bottom: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
-                    <h2 style="margin-bottom: 0.8rem;">5. Tasks & Remarks</h2>
-                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Add recurring tasks with custom
-                        **Remarks**. Use the
-                        **Include to Report** checkbox to toggle rows on/off without deleting them.</p>
+                    <div class="manual-icon-container"
+                        style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(0, 188, 212, 0.05));">
+                        <i class="fas fa-file-export manual-icon" style="color: #00bcd4;"></i>
+                    </div>
+                    <h2 style="margin-bottom: 0.8rem;">5. Export</h2>
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Click **Export to Excel**. Your
+                        professional report is saved with a standardized filename: **PR - [Name] - [Date].xlsx**.</p>
                 </div>
 
                 <!-- Step 7: Finish -->
                 <div class="carousel-slide" style="flex: 1; padding: 2rem 3rem; text-align: center;">
-                    <img src="assets/manual/step7.png" alt="Finish"
-                        style="width: 100%; max-height: 180px; object-fit: contain; margin-bottom: 2rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
+                    <div class="manual-icon-container"
+                        style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.05)); border-color: var(--success);">
+                        <i class="fas fa-check-double manual-icon" style="color: var(--success);"></i>
+                    </div>
                     <h2 style="margin-bottom: 0.8rem; color: var(--success);">Ready to Go!</h2>
-                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Click **Generate Now** to build your
-                        professional Excel
-                        report. Your settings are autosaved for next time. Ready?</p>
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Launch your generation now. Your
+                        settings are autosaved for next time. Ready?</p>
                 </div>
             </div>
 
@@ -446,6 +521,31 @@
                     <button type="button" id="carousel-finish" class="btn-primary"
                         style="display: none; height: 38px; padding: 0 1.5rem; margin-top: 0; font-size: 0.85rem; display: flex; align-items: center; justify-content: center;">Done!</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal-content glass"
+            style="max-width: 400px; text-align: center; padding: 2.5rem; position: relative;">
+            <button type="button"
+                style="position: absolute; top: 15px; right: 15px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem;"
+                onclick="document.getElementById('confirm-modal').style.display='none'">
+                <i class="fas fa-times"></i>
+            </button>
+            <div style="font-size: 3rem; color: var(--error); margin-bottom: 1rem;">
+                <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <h3 id="confirm-title" style="margin-top:0; color:var(--text-main); font-size:1.5rem;">Are you sure?</h3>
+            <p id="confirm-message" style="margin: 1rem 0 2rem; color: var(--text-muted); line-height: 1.6;">This action
+                will permanently remove the item.</p>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button id="confirm-cancel" class="btn-secondary"
+                    style="background: rgba(255,255,255,0.05); padding: 0.8rem 1.5rem; border-radius: 10px;">Cancel</button>
+                <button id="confirm-ok" class="btn-primary animate-shine"
+                    style="background: var(--error); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 10px; margin-top: 0; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);">Yes,
+                    Remove</button>
             </div>
         </div>
     </div>
@@ -497,13 +597,16 @@
                     <table class="preview-table">
                         <thead>
                             <tr>
-                                <th style="width: 40px;"><input type="checkbox" id="select-all-preview" checked></th>
+                                <th style="width: 50px; text-align: center;">
+                                    <input type="checkbox" id="select-all-preview" checked
+                                        style="width: 18px; height: 18px; cursor: pointer;">
+                                </th>
                                 <th style="width: 90px;">Date</th>
                                 <th>Activity / Task</th>
-                                <th style="width: 140px;">Project</th>
+                                <th style="width: 200px;">Project</th>
                                 <th style="width: 120px;">Supervisor</th>
                                 <th style="width: 150px;">Type</th>
-                                <th style="width: 180px;">Remarks</th>
+                                <th style="width: 500px;">Remarks</th>
                             </tr>
                         </thead>
                         <tbody id="preview-body">
@@ -530,7 +633,7 @@
                 </div>
                 <h2
                     style="margin-bottom: 0.5rem; background: var(--gradient-text); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
-                    What's New in V2.0?</h2>
+                    What's New in V2.1?</h2>
                 <p style="color: var(--text-muted); font-size: 0.9rem;">Intelligence & Automation Elite Update</p>
             </div>
 
@@ -542,8 +645,8 @@
                     <div>
                         <h4 style="margin-bottom: 0.2rem;">Intelligent Holiday Names</h4>
                         <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">No more generic
-                            "Holiday" labels. Reports now fetch official names like <b>Eid al-Fitr</b> or <b>Araw ng
-                                Kagitingan</b> live from the cloud.</p>
+                            "Holiday" labels. Reports now fetch official names like <b>Eid al-Fitr</b> live from the
+                            cloud.</p>
                     </div>
                 </div>
 
@@ -558,36 +661,37 @@
                     </div>
                 </div>
 
-                <!-- Point 3: Integrity Guard -->
+                <!-- Point 3: Deletion Integrity -->
                 <div style="display: flex; gap: 1rem; margin-bottom: 1.2rem;">
+                    <div style="color: var(--error); flex-shrink: 0;"><i class="fas fa-trash-alt fa-lg"></i></div>
+                    <div>
+                        <h4 style="margin-bottom: 0.2rem;">Accurate Deletion Guards</h4>
+                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">No more duplicate
+                            IDs. The "x" or delete confirmation modal now accurately tracks the <b>real-time name</b> of
+                            the project or task you're removing.</p>
+                    </div>
+                </div>
+
+                <!-- Point 4: Modal UX Improvement -->
+                <div style="display: flex; gap: 1rem; margin-bottom: 1.2rem;">
+                    <div style="color: #00BCD4; flex-shrink: 0;"><i class="fas fa-window-close fa-lg"></i></div>
+                    <div>
+                        <h4 style="margin-bottom: 0.2rem;">Seamless Modal UX</h4>
+                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">Every modal now
+                            features a <b>close button</b> and supports <b>click-outside-to-close</b> functionality on
+                            the overlay for much faster navigation.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Point 5: Integrity Guard -->
+                <div style="display: flex; gap: 1rem;">
                     <div style="color: #FFC107; flex-shrink: 0;"><i class="fas fa-shield-alt fa-lg"></i></div>
                     <div>
                         <h4 style="margin-bottom: 0.2rem;">Integrity Guard (Empty Days)</h4>
                         <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">Empty workdays are
                             now flagged in **Yellow** in the preview. Never submit a blank day or miss a commit again!
                         </p>
-                    </div>
-                </div>
-
-                <!-- Point 4: UI/UX Refinement -->
-                <div style="display: flex; gap: 1rem; margin-bottom: 1.2rem;">
-                    <div style="color: #00BCD4; flex-shrink: 0;"><i class="fas fa-th-large fa-lg"></i></div>
-                    <div>
-                        <h4 style="margin-bottom: 0.2rem;">Premium UI/UX Polish</h4>
-                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">Every modal is now
-                            <b>perfectly centered</b> and aligned. Includes a new real-time search filter and inline
-                            task reclassification.</p>
-                    </div>
-                </div>
-
-                <!-- Point 5: Zero-Config -->
-                <div style="display: flex; gap: 1rem;">
-                    <div style="color: #E91E63; flex-shrink: 0;"><i class="fas fa-bolt fa-lg"></i></div>
-                    <div>
-                        <h4 style="margin-bottom: 0.2rem;">Zero-Config Automation</h4>
-                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">Manual holiday input
-                            has been removed. Everything is handled for you automatically via our hybrid Google/Nager
-                            backend.</p>
                     </div>
                 </div>
             </div>
