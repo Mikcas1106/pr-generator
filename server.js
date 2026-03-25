@@ -207,11 +207,15 @@ async function getLogData(params) {
                 link: '',
                 taskType: 'holiday'
             });
-        } else {
-            if (allCommitsByDate[dStr]) {
-                allCommitsByDate[dStr].forEach(c => entriesForDay.push({ ...c, date: dStr, dateFmt: dFmt, remarks: '' }));
-            }
-            
+        } 
+
+        // Always include commits if they exist, even if it's a holiday
+        if (allCommitsByDate[dStr]) {
+            allCommitsByDate[dStr].forEach(c => entriesForDay.push({ ...c, date: dStr, dateFmt: dFmt, remarks: '' }));
+        }
+        
+        // Only include default tasks if it's NOT a holiday
+        if (!hMatch) {
             const dObj = parseYYYYMMDD(dStr);
             const dayOfWeek = dObj.getDay().toString();
             if (defaultTasks && Array.isArray(defaultTasks)) {
