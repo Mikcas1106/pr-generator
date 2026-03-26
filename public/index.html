@@ -143,10 +143,11 @@
         <main>
             <section class="card glass">
                 <div class="tabs">
-                    <button class="active" data-tab="generate" onclick="showTab('generate', this)">Generate
-                        Report</button>
+                    <button class="active" data-tab="generate" onclick="showTab('generate', this)">Report
+                        Engine</button>
+                    <button data-tab="projects" onclick="showTab('projects', this)">Projects List</button>
                     <button data-tab="defaults" onclick="showTab('defaults', this)">Defaults & Holidays</button>
-                    <button data-tab="manual" onclick="showTab('manual', this)">Manual</button>
+                    <button data-tab="manual" onclick="showTab('manual', this)">Guide</button>
                 </div>
 
                 <!-- Generate Tab -->
@@ -155,7 +156,8 @@
                         <div class="split-layout">
                             <div class="left-col">
                                 <!-- Section 1: User Profile -->
-                                <div class="input-section glass full-width">
+                                <div class="input-section glass full-width"
+                                    style="margin-bottom: 0; min-height: 380px;">
                                     <h3><i class="fas fa-user-circle"></i> Employee Information</h3>
                                     <div class="section-grid">
                                         <div class="input-group">
@@ -171,10 +173,19 @@
                                             <input type="text" id="author" placeholder="email@example.com">
                                         </div>
                                     </div>
+                                    <div style="margin-top: auto; padding-top: 2rem;">
+                                        <p
+                                            style="font-size: 0.8rem; color: var(--text-muted); opacity: 0.6; line-height: 1.5;">
+                                            <i class="fas fa-info-circle"></i> Ensure your Git email filter matches
+                                            exactly with your local git config email.
+                                        </p>
+                                    </div>
                                 </div>
-
+                            </div>
+                            <div class="right-col">
                                 <!-- Section 2: Report Range -->
-                                <div class="input-section glass full-width">
+                                <div class="input-section glass full-width"
+                                    style="margin-bottom: 0; min-height: 380px;">
                                     <h3><i class="fas fa-calendar-alt"></i> Coverage Period</h3>
                                     <div class="section-grid">
                                         <div class="input-group">
@@ -192,76 +203,101 @@
                                         <button type="button" class="btn-shortcut" data-range="week-3">3rd Week</button>
                                         <button type="button" class="btn-shortcut" data-range="week-4">4th Week</button>
                                     </div>
-                                </div>
-
-                                <button type="submit" class="btn-primary animate-shine" style="width:100%">Generate
-                                    Now</button>
-                            </div>
-                            <div class="right-col">
-                                <!-- Multi-Project Container -->
-                                <div id="projects-container" class="full-width">
-                                    <div class="project-entry glass">
-                                        <h3 class="full-width"
-                                            style="margin-top:0; color:var(--primary); font-size:1rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
-                                            <i class="fas fa-folder-open"></i> Project Details
-                                        </h3>
-
-                                        <!-- Local Section -->
-                                        <div class="input-group full-width">
-                                            <label><i class="fas fa-desktop"></i> Local Project Folder Directory</label>
-                                            <input type="text" class="repoPath"
-                                                placeholder="C:\path\to\your\repository">
-                                        </div>
-
-                                        <div class="input-group">
-                                            <label><i class="fas fa-tag"></i> Name</label>
-                                            <input type="text" class="projectName" placeholder="Project Name">
-                                        </div>
-                                        <div class="input-group">
-                                            <label><i class="fas fa-user-shield"></i> Supervisor</label>
-                                            <input type="text" class="supervisorName" placeholder="Supervisor Name">
-                                        </div>
-
-                                        <!-- Git Identifier Section (2x2 Grid) -->
-                                        <div class="input-group">
-                                            <label><i class="fab fa-git-alt"></i> Platform</label>
-                                            <select class="repoPlatform">
-                                                <option value="bitbucket">Bitbucket</option>
-                                                <option value="github">GitHub</option>
-                                            </select>
-                                        </div>
-                                        <div class="input-group">
-                                            <label><i class="fas fa-users-gear"></i> Workspace</label>
-                                            <input type="text" class="repoWorkspace" placeholder="telcomliveph">
-                                        </div>
-                                        <div class="input-group full-width">
-                                            <label><i class="fas fa-code-branch"></i> Repository Name</label>
-                                            <input type="text" class="repoName" placeholder="e.g., project-backend">
-                                        </div>
+                                    <div style="margin-top: auto; padding-top: 1rem;">
+                                        <button type="button" onclick="showTab('projects')" class="btn-secondary"
+                                            style="width: 100%; justify-content: center; display: flex; align-items: center; gap: 0.5rem;">
+                                            <i class="fas fa-folder-tree"></i> View All Projects
+                                        </button>
                                     </div>
-                                </div>
-
-                                <div class="full-width add-project-btn-container">
-                                    <button type="button" id="add-project" class="btn-secondary">+ Add Another
-                                        Project</button>
                                 </div>
                             </div>
                         </div>
+                        <button type="submit" class="btn-primary animate-shine"
+                            style="width:100%; margin-top: 1rem; padding: 1.2rem; font-size: 1.2rem;">
+                            <i class="fas fa-rocket"></i> Generate Progress Report Now
+                        </button>
                     </form>
+                </div>
+
+                <!-- Projects Tab -->
+                <div id="tab-projects" class="tab-content">
+                    <div class="input-section glass full-width">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                            <h3 style="margin:0; border:none; padding:0;"><i class="fas fa-folder-tree"></i> Project
+                                Management</h3>
+                            <button type="button" id="open-add-project-modal" class="btn-primary"
+                                style="margin-top:0; padding: 0.6rem 1.2rem; font-size: 0.9rem;">
+                                <i class="fas fa-plus"></i> Add Project
+                            </button>
+                        </div>
+
+                        <!-- Project Search Bar -->
+                        <div
+                            style="display: flex; align-items: center; gap: 0.8rem; background: rgba(0,0,0,0.2); padding: 0.8rem 1.2rem; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid var(--border);">
+                            <i class="fas fa-search" style="color: var(--text-muted); font-size: 0.9rem;"></i>
+                            <input type="text" id="project-search"
+                                placeholder="Search projects by name, platform, or repo..."
+                                style="flex: 1; background: transparent; border: none; outline: none; color: white; font-size: 0.9rem; font-family: inherit;">
+                        </div>
+
+                        <div class="table-container">
+                            <table class="projects-table">
+                                <thead>
+                                    <tr>
+                                        <th>Project Name</th>
+                                        <th>Supervisor</th>
+                                        <th>Platform</th>
+                                        <th>Repository</th>
+                                        <th style="text-align: right;">Status</th>
+                                        <th style="text-align: right;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="projects-table-body">
+                                    <!-- Project rows will be injected here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Defaults Tab -->
                 <div id="tab-defaults" class="tab-content">
-                    <div class="form-grid">
-                        <div class="input-section glass full-width">
-                            <h3><i class="fas fa-calendar-check"></i> Defaults & Holidays Config</h3>
-                            <!-- Automated Holiday Detection Engine Active -->
-                            <div id="default-tasks-container" class="full-width">
-                            </div>
-                            <div class="full-width add-project-btn-container" style="margin-top: 1rem;">
-                                <button type="button" id="add-default-task" class="btn-secondary">+ Add Default
-                                    Task</button>
-                            </div>
+                    <div class="input-section glass full-width">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                            <h3 style="margin: 0; border: none; padding: 0;"><i class="fas fa-calendar-check"></i>
+                                Defaults & Holidays Config</h3>
+                            <button type="button" id="open-add-task-modal" class="btn-primary"
+                                style="margin-top:0; padding: 0.6rem 1.2rem; font-size: 0.9rem;">
+                                <i class="fas fa-plus"></i> Add Default Task
+                            </button>
+                        </div>
+
+                        <!-- Defaults Search Bar -->
+                        <div
+                            style="display: flex; align-items: center; gap: 0.8rem; background: rgba(0,0,0,0.2); padding: 0.8rem 1.2rem; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid var(--border);">
+                            <i class="fas fa-search" style="color: var(--text-muted); font-size: 0.9rem;"></i>
+                            <input type="text" id="defaults-search" placeholder="Search tasks by name, day, or type..."
+                                style="flex: 1; background: transparent; border: none; outline: none; color: white; font-size: 0.9rem; font-family: inherit;">
+                        </div>
+
+                        <div class="table-container">
+                            <table class="projects-table">
+                                <thead>
+                                    <tr>
+                                        <th>Task / Description</th>
+                                        <th>Schedule</th>
+                                        <th>Project</th>
+                                        <th>Type</th>
+                                        <th style="text-align: right;">Status</th>
+                                        <th style="text-align: right;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="default-tasks-table-body">
+                                    <!-- Task rows will be injected here -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -342,6 +378,90 @@
         </div>
     </div>
 
+    <!-- Task Modal -->
+    <div id="task-modal" class="modal-overlay">
+        <div class="modal-content glass animate-scale-up" style="max-width: 650px;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem;">
+                <h3 id="task-modal-title" style="margin: 0; color: var(--primary); font-size: 1.25rem;">
+                    <i class="fas fa-calendar-plus"></i> Add Default Task
+                </h3>
+                <button type="button" class="close-modal" onclick="closeTaskModal()">&times;</button>
+            </div>
+
+            <form id="task-modal-form" class="form-grid">
+                <input type="hidden" id="modal-task-index" value="-1">
+
+                <div class="section-grid" style="grid-template-columns: 1fr 1fr; width: 100%;">
+                    <div class="input-group">
+                        <label>Task Name</label>
+                        <input type="text" id="modal-taskName" placeholder="e.g., Weekly Meeting" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Day of Week</label>
+                        <select id="modal-taskDay">
+                            <option value="1">Monday</option>
+                            <option value="2">Tuesday</option>
+                            <option value="3">Wednesday</option>
+                            <option value="4">Thursday</option>
+                            <option value="5">Friday</option>
+                            <option value="all">Everyday</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="section-grid" style="grid-template-columns: 1fr 1fr; width: 100%;">
+                    <div class="input-group">
+                        <label>Report Type / Color</label>
+                        <select id="modal-taskType">
+                            <option value="normal">Normal Task (Clear)</option>
+                            <option value="meeting">🏠 Meeting (Blue)</option>
+                            <option value="database">💾 Database & Server (Gray)</option>
+                            <option value="holiday">🎉 Holiday (Green)</option>
+                            <option value="leave">🌴 Leave (Orange)</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Associate Project</label>
+                        <select id="modal-taskProject">
+                            <!-- Project list will be injected here -->
+                        </select>
+                    </div>
+                </div>
+
+                <div class="input-group full-width">
+                    <label>Task Remarks / Default Text</label>
+                    <textarea id="modal-taskRemarks" placeholder="Optional remarks..." rows="2"
+                        style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 10px; color: #fff; padding: 0.75rem; resize: none;"></textarea>
+                </div>
+
+                <div class="section-grid"
+                    style="grid-template-columns: 1fr 1fr; width: 100%; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+                    <label class="switch-container">
+                        <div class="switch">
+                            <input type="checkbox" id="modal-taskEnabled" checked>
+                            <span class="slider"></span>
+                        </div>
+                        <span class="switch-label">Include in Report</span>
+                    </label>
+                    <label class="switch-container">
+                        <div class="switch">
+                            <input type="checkbox" id="modal-taskOnlyIfProjectActive">
+                            <span class="slider"></span>
+                        </div>
+                        <span class="switch-label">Only if project has commits</span>
+                    </label>
+                </div>
+
+                <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem;">
+                    <button type="button" class="btn-secondary" onclick="closeTaskModal()">Cancel</button>
+                    <button type="submit" class="btn-primary animate-shine"
+                        style="margin-top: 0; padding: 0.6rem 2rem;">Save Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Generation Confirmation Modal (Optional Feature) -->
     <div id="generation-confirm-modal" class="modal-overlay">
         <div class="modal-content glass animate-scale-up" style="max-width: 450px;">
@@ -352,7 +472,8 @@
                 </div>
                 <div>
                     <h3 style="margin: 0; font-size: 1.25rem;">Confirm Generation</h3>
-                    <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">Review your settings before proceeding.</p>
+                    <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">Review your settings before
+                        proceeding.</p>
                 </div>
             </div>
 
@@ -388,27 +509,80 @@
                 <i class="fas fa-check-circle"></i>
             </div>
             <h2 style="margin-bottom: 0.5rem; color: var(--success);">Generation Success!</h2>
-            <p id="success-message" style="opacity: 0.7; font-size: 0.95rem; margin-bottom: 2rem;">Your progress report
+            <p id="success-message" style="opacity: 0.7; font-size: 0.95rem; margin-bottom: 2rem;">Your progress
+                report
                 has been successfully generated and saved to your Downloads folder.</p>
             <button type="button" class="btn-primary animate-shine" style="width: 100%;"
                 onclick="document.getElementById('success-modal').style.display='none'">Awesome!</button>
         </div>
     </div>
 
-    <!-- Error Modal -->
-    <div id="error-modal" class="modal-overlay">
-        <div class="modal-content glass animate-scale-up" style="max-width: 450px; text-align: center;">
+    <!-- Project Modal -->
+    <div id="project-modal" class="modal-overlay">
+        <div class="modal-content glass animate-scale-up" style="max-width: 600px;">
             <div
-                style="width: 70px; height: 70px; background: rgba(var(--error-rgb, 239, 68, 68), 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--error); font-size: 2.5rem; margin: 0 auto 1.5rem;">
-                <i class="fas fa-exclamation-triangle"></i>
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem;">
+                <h3 id="project-modal-title" style="margin: 0; color: var(--primary); font-size: 1.25rem;">
+                    <i class="fas fa-folder-plus"></i> Add New Project
+                </h3>
+                <button type="button" class="close-modal" onclick="closeProjectModal()">&times;</button>
             </div>
-            <h2 style="margin-bottom: 0.5rem; color: var(--error);">Oops! Something Failed</h2>
-            <p id="error-message" style="opacity: 0.7; font-size: 0.95rem; margin-bottom: 2rem;">There was an issue
-                processing your request. Please check your settings and try again.</p>
-            <div style="display: flex; gap: 1rem;">
-                <button type="button" class="btn-secondary" style="flex: 1;"
-                    onclick="document.getElementById('error-modal').style.display='none'">Dismiss</button>
-            </div>
+
+            <form id="project-modal-form" class="form-grid">
+                <input type="hidden" id="modal-project-index" value="-1">
+
+                <div class="input-group full-width">
+                    <label><i class="fas fa-desktop"></i> Local Project Folder Directory</label>
+                    <input type="text" id="modal-repoPath" placeholder="C:\path\to\your\repository" required>
+                </div>
+
+                <div class="section-grid" style="grid-template-columns: 1fr 1fr; width: 100%;">
+                    <div class="input-group">
+                        <label><i class="fas fa-tag"></i> Name</label>
+                        <input type="text" id="modal-projectName" placeholder="Project Name" required>
+                    </div>
+                    <div class="input-group">
+                        <label><i class="fas fa-user-shield"></i> Supervisor</label>
+                        <input type="text" id="modal-supervisorName" placeholder="Supervisor Name" required>
+                    </div>
+                </div>
+
+                <div class="section-grid" style="grid-template-columns: 1fr 1fr; width: 100%;">
+                    <div class="input-group">
+                        <label><i class="fab fa-git-alt"></i> Platform</label>
+                        <select id="modal-repoPlatform">
+                            <option value="bitbucket">Bitbucket</option>
+                            <option value="github">GitHub</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label><i class="fas fa-users-gear"></i> Workspace</label>
+                        <input type="text" id="modal-repoWorkspace" placeholder="e.g., MyTeam">
+                    </div>
+                </div>
+
+                <div class="input-group full-width">
+                    <label><i class="fas fa-code-branch"></i> Repository Name</label>
+                    <input type="text" id="modal-repoName" placeholder="e.g., project-backend">
+                </div>
+
+                <div class="section-grid"
+                    style="grid-template-columns: 1fr; width: 100%; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+                    <label class="switch-container">
+                        <div class="switch">
+                            <input type="checkbox" id="modal-projectEnabled" checked>
+                            <span class="slider"></span>
+                        </div>
+                        <span class="switch-label">Include in Report</span>
+                    </label>
+                </div>
+
+                <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem;">
+                    <button type="button" class="btn-secondary" onclick="closeProjectModal()">Cancel</button>
+                    <button type="submit" class="btn-primary animate-shine"
+                        style="margin-top: 0; padding: 0.6rem 2rem;">Save Project</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -425,7 +599,8 @@
                         <i class="fas fa-rocket manual-icon"></i>
                     </div>
                     <h2 style="margin-bottom: 0.8rem;">Welcome to Git Report v2.1</h2>
-                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Let's quickly walk through the new
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Let's quickly walk through
+                        the new
                         automation features to make
                         your progress reports effortlessly across multiple projects.</p>
                 </div>
@@ -437,8 +612,10 @@
                         <i class="fas fa-id-card manual-icon" style="color: #10b981;"></i>
                     </div>
                     <h2 style="margin-bottom: 0.8rem;">1. Identify Yourself</h2>
-                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Fill in the **Employee Information**
-                        section. The **Git Email Filter** must match the email you use for your commits (e.g., **git
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Fill in the **Employee
+                        Information**
+                        section. The **Git Email Filter** must match the email you use for your commits (e.g.,
+                        **git
                         config user.email**).</p>
                 </div>
 
@@ -449,8 +626,10 @@
                         <i class="fas fa-folder-plus manual-icon" style="color: #ef4444;"></i>
                     </div>
                     <h2 style="margin-bottom: 0.8rem;">2. Connect Your Projects</h2>
-                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Add your local repository paths. Use
-                        the full directory path (e.g., **C:\\Projects\\my-repo**). The tool will automatically detect
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Add your local repository
+                        paths. Use
+                        the full directory path (e.g., **C:\\Projects\\my-repo**). The tool will automatically
+                        detect
                         the Git history.</p>
                 </div>
 
@@ -461,8 +640,10 @@
                         <i class="fas fa-tasks manual-icon" style="color: #ffc107;"></i>
                     </div>
                     <h2 style="margin-bottom: 0.8rem;">3. Setup Recurring Tasks</h2>
-                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">In the **Defaults & Holidays** tab,
-                        add your weekly meetings or standard tasks. Use the **Only if project has commits** toggle for
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">In the **Defaults &
+                        Holidays** tab,
+                        add your weekly meetings or standard tasks. Use the **Only if project has commits**
+                        toggle for
                         accuracy.</p>
                 </div>
 
@@ -473,8 +654,10 @@
                         <i class="fas fa-search-plus manual-icon" style="color: #009688;"></i>
                     </div>
                     <h2 style="margin-bottom: 0.8rem;">4. Review & Refine</h2>
-                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Click **Generate Now** to open the
-                        Preview Modal. Use the **Search Bar**, **toggle checkboxes**, or **edit remarks** directly in
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Click **Generate Now** to
+                        open the
+                        Preview Modal. Use the **Search Bar**, **toggle checkboxes**, or **edit remarks**
+                        directly in
                         the table.</p>
                 </div>
 
@@ -485,8 +668,10 @@
                         <i class="fas fa-file-export manual-icon" style="color: #00bcd4;"></i>
                     </div>
                     <h2 style="margin-bottom: 0.8rem;">5. Export</h2>
-                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Click **Export to Excel**. Your
-                        professional report is saved with a standardized filename: **PR - [Name] - [Date].xlsx**.</p>
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Click **Export to Excel**.
+                        Your
+                        professional report is saved with a standardized filename: **PR - [Name] -
+                        [Date].xlsx**.</p>
                 </div>
 
                 <!-- Step 7: Finish -->
@@ -496,7 +681,8 @@
                         <i class="fas fa-check-double manual-icon" style="color: var(--success);"></i>
                     </div>
                     <h2 style="margin-bottom: 0.8rem; color: var(--success);">Ready to Go!</h2>
-                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Launch your generation now. Your
+                    <p style="opacity: 0.7; line-height: 1.5; font-size: 0.95rem;">Launch your generation now.
+                        Your
                         settings are autosaved for next time. Ready?</p>
                 </div>
             </div>
@@ -537,8 +723,10 @@
             <div style="font-size: 3rem; color: var(--error); margin-bottom: 1rem;">
                 <i class="fas fa-exclamation-circle"></i>
             </div>
-            <h3 id="confirm-title" style="margin-top:0; color:var(--text-main); font-size:1.5rem;">Are you sure?</h3>
-            <p id="confirm-message" style="margin: 1rem 0 2rem; color: var(--text-muted); line-height: 1.6;">This action
+            <h3 id="confirm-title" style="margin-top:0; color:var(--text-main); font-size:1.5rem;">Are you sure?
+            </h3>
+            <p id="confirm-message" style="margin: 1rem 0 2rem; color: var(--text-muted); line-height: 1.6;">
+                This action
                 will permanently remove the item.</p>
             <div style="display: flex; gap: 1rem; justify-content: center;">
                 <button id="confirm-cancel" class="btn-secondary"
@@ -564,7 +752,8 @@
                     </div>
                     <div>
                         <h3 style="margin: 0; font-size: 1.2rem;">Report Preview</h3>
-                        <p style="margin: 0; font-size: 0.8rem; opacity: 0.6;">Review, remove rows, or edit remarks
+                        <p style="margin: 0; font-size: 0.8rem; opacity: 0.6;">Review, remove rows, or edit
+                            remarks
                             before exporting</p>
                     </div>
                 </div>
@@ -634,7 +823,8 @@
                 <h2
                     style="margin-bottom: 0.5rem; background: var(--gradient-text); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
                     What's New in V2.1?</h2>
-                <p style="color: var(--text-muted); font-size: 0.9rem;">Intelligence & Automation Elite Update</p>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Intelligence & Automation Elite Update
+                </p>
             </div>
 
             <div style="margin-bottom: 2.5rem;">
@@ -644,8 +834,10 @@
                     </div>
                     <div>
                         <h4 style="margin-bottom: 0.2rem;">Intelligent Holiday Names</h4>
-                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">No more generic
-                            "Holiday" labels. Reports now fetch official names like <b>Eid al-Fitr</b> live from the
+                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">No more
+                            generic
+                            "Holiday" labels. Reports now fetch official names like <b>Eid al-Fitr</b> live from
+                            the
                             cloud.</p>
                     </div>
                 </div>
@@ -655,19 +847,24 @@
                     <div style="color: #4CAF50; flex-shrink: 0;"><i class="fas fa-link fa-lg"></i></div>
                     <div>
                         <h4 style="margin-bottom: 0.2rem;">Supercharged Excel Links</h4>
-                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">Exported files now
-                            feature <b>blue clickable hyperlinks</b> for both tasks and commits. Verification is just
+                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">Exported
+                            files now
+                            feature <b>blue clickable hyperlinks</b> for both tasks and commits. Verification is
+                            just
                             one click away.</p>
                     </div>
                 </div>
 
                 <!-- Point 3: Deletion Integrity -->
                 <div style="display: flex; gap: 1rem; margin-bottom: 1.2rem;">
-                    <div style="color: var(--error); flex-shrink: 0;"><i class="fas fa-trash-alt fa-lg"></i></div>
+                    <div style="color: var(--error); flex-shrink: 0;"><i class="fas fa-trash-alt fa-lg"></i>
+                    </div>
                     <div>
                         <h4 style="margin-bottom: 0.2rem;">Accurate Deletion Guards</h4>
-                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">No more duplicate
-                            IDs. The "x" or delete confirmation modal now accurately tracks the <b>real-time name</b> of
+                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">No more
+                            duplicate
+                            IDs. The "x" or delete confirmation modal now accurately tracks the <b>real-time
+                                name</b> of
                             the project or task you're removing.</p>
                     </div>
                 </div>
@@ -677,8 +874,10 @@
                     <div style="color: #00BCD4; flex-shrink: 0;"><i class="fas fa-window-close fa-lg"></i></div>
                     <div>
                         <h4 style="margin-bottom: 0.2rem;">Seamless Modal UX</h4>
-                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">Every modal now
-                            features a <b>close button</b> and supports <b>click-outside-to-close</b> functionality on
+                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">Every modal
+                            now
+                            features a <b>close button</b> and supports <b>click-outside-to-close</b>
+                            functionality on
                             the overlay for much faster navigation.
                         </p>
                     </div>
@@ -689,8 +888,10 @@
                     <div style="color: #FFC107; flex-shrink: 0;"><i class="fas fa-shield-alt fa-lg"></i></div>
                     <div>
                         <h4 style="margin-bottom: 0.2rem;">Integrity Guard (Empty Days)</h4>
-                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">Empty workdays are
-                            now flagged in **Yellow** in the preview. Never submit a blank day or miss a commit again!
+                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">Empty
+                            workdays are
+                            now flagged in **Yellow** in the preview. Never submit a blank day or miss a commit
+                            again!
                         </p>
                     </div>
                 </div>

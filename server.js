@@ -16,6 +16,8 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
+const CONFIG_FILE = path.join(__dirname, 'config.json');
+
 const holidayCacheV2 = {};
 
 async function fetchGooglePHHolidays(year) {
@@ -287,6 +289,28 @@ app.post('/preview-data', async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: "Error fetching preview data.", error: error.message });
+    }
+});
+
+app.get('/get-config', (req, res) => {
+    if (fs.existsSync(CONFIG_FILE)) {
+        try {
+            const data = fs.readFileSync(CONFIG_FILE, 'utf8');
+            return res.json({ success: true, data: JSON.parse(data) });
+        } catch (e) {
+            return res.json({ success: false, message: "Error reading config file." });
+        }
+    }
+    res.json({ success: false, message: "Config file not found." });
+});
+
+app.post('/save-config', (req, res) => {
+    try {
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(req.body, null, 4), 'utf8');
+        res.json({ success: true, message: "Config saved successfully." });
+    } catch (e) {
+        console.error("Save Config Error:", e);
+        res.status(500).json({ success: false, message: "Error saving config file." });
     }
 });
 

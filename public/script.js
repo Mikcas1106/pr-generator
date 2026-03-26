@@ -147,10 +147,9 @@ function showTab(tab, btn) {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
     
-    document.getElementById(`tab-${tab}`).classList.add('active');
+    const content = document.getElementById(`tab-${tab}`);
+    if (content) content.classList.add('active');
 
-    // btn is passed explicitly from HTML (onclick="showTab('x', this)")
-    // or resolved here when called programmatically
     const activeBtn = btn || document.querySelector(`.tabs button[data-tab="${tab}"]`);
     if (activeBtn) activeBtn.classList.add('active');
 }
@@ -164,98 +163,385 @@ function log(msg, type = 'info') {
     if (type === 'error') statusLog.classList.add('status-error');
 }
 
+let globalProjects = [];
+
 function getAvailableProjects() {
-    return Array.from(document.querySelectorAll('.project-entry')).map(entry => ({
-        projectName: entry.querySelector('.projectName').value,
-        supervisorName: entry.querySelector('.supervisorName').value
-    })).filter(p => p.projectName.trim() !== '');
+    return globalProjects.filter(p => p.projectName.trim() !== '');
 }
 
 function updateAllTaskProjectDropdowns() {
     const projects = getAvailableProjects();
-    document.querySelectorAll('.default-task-entry').forEach(entry => {
-        const select = entry.querySelector('.taskProject');
-        const supervisorInput = entry.querySelector('.taskSupervisor');
-        const currentVal = select.getAttribute('data-value') || select.value;
-        
-        let html = '<option value="">-- Select Project --</option>';
+    const modalSelect = document.getElementById('modal-taskProject');
+    if (modalSelect) {
+        let html = '<option value="">-- No Project (Global) --</option>';
         projects.forEach(p => {
-            html += `<option value="${p.projectName}" ${p.projectName === currentVal ? 'selected' : ''} data-supervisor="${p.supervisorName}">${p.projectName}</option>`;
+            html += `<option value="${p.projectName}" data-supervisor="${p.supervisorName}">${p.projectName}</option>`;
         });
-        select.innerHTML = html;
-        select.setAttribute('data-value', select.value);
-
-        // Update supervisor
-        const selectedOption = select.options[select.selectedIndex];
-        if (selectedOption && selectedOption.value) {
-            supervisorInput.value = selectedOption.getAttribute('data-supervisor') || '';
-        }
-    });
+        modalSelect.innerHTML = html;
+    }
 }
 
-function saveState() {
-    const projectEntries = document.querySelectorAll('.project-entry');
-    const projects = Array.from(projectEntries).map(entry => ({
-        repoPath: entry.querySelector('.repoPath').value,
-        projectName: entry.querySelector('.projectName').value,
-        supervisorName: entry.querySelector('.supervisorName').value,
-        repoPlatform: entry.querySelector('.repoPlatform').value,
-        repoWorkspace: entry.querySelector('.repoWorkspace').value,
-        repoName: entry.querySelector('.repoName').value
-    }));
+let globalDefaultTasks = [];
 
+async function saveState() {
     const state = {
         employeeName: document.getElementById('employeeName').value,
         employeeId: document.getElementById('employeeId').value,
         author: document.getElementById('author').value,
         since: document.getElementById('since').value,
         until: document.getElementById('until').value,
-        defaultTasks: Array.from(document.querySelectorAll('.default-task-entry')).map(entry => ({
-            taskName: entry.querySelector('.taskName').value,
-            taskDay: entry.querySelector('.taskDay').value,
-            taskProject: entry.querySelector('.taskProject').value,
-            taskSupervisor: entry.querySelector('.taskSupervisor').value,
-            taskRemarks: entry.querySelector('.taskRemarks').value,
-            taskEnabled: entry.querySelector('.taskEnabled').checked,
-            taskOnlyIfProjectActive: entry.querySelector('.taskOnlyIfProjectActive').checked,
-            taskType: entry.querySelector('.taskType').value
-        })),
-        projects: projects
+        defaultTasks: globalDefaultTasks,
+        projects: globalProjects
     };
+    
+    // Primary: Local Storage
     localStorage.setItem('pr_generator_state', JSON.stringify(state));
+
+    // Secondary: Server Mirror
+    try {
+        await fetch('http://localhost:3001/save-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(state)
+        });
+    } catch (e) {
+        console.error("Server sync failed:", e);
+    }
 }
 
-function loadState() {
-    const saved = localStorage.getItem('pr_generator_state');
-    if (!saved) return;
+async function loadState() {
+    // 1. Load from Primary (Local Storage) for immediate UI response
+    const localSaved = localStorage.getItem('pr_generator_state');
+    let state = localSaved ? JSON.parse(localSaved) : null;
+    let serverDataUsed = false;
 
-    const state = JSON.parse(saved);
+    // 2. Fetch from Secondary (Server Mirror) for recovery/persistence
+    try {
+        const resp = await fetch('http://localhost:3001/get-config');
+        const result = await resp.json();
+        
+        if (result.success && result.data) {
+            // If Local Storage is empty (new browser/cache cleared), use server data
+            if (!state) {
+                state = result.data;
+                serverDataUsed = true;
+                log("Data recovered from server backup.", "success");
+            }
+        } else if (state) {
+            // First run migration: Local exists but Server doesn't
+            // Sync local data to server immediately
+            saveState();
+        }
+    } catch (e) {
+        console.error("Server load failed:", e);
+    }
+
+    if (!state) return;
+
+    // Populate UI
     document.getElementById('employeeName').value = state.employeeName || '';
     document.getElementById('employeeId').value = state.employeeId || '';
     document.getElementById('author').value = state.author || '';
     document.getElementById('since').value = state.since || '';
     document.getElementById('until').value = state.until || '';
 
-    if (state.defaultTasks && state.defaultTasks.length > 0) {
-        const container = document.getElementById('default-tasks-container');
-        container.innerHTML = '';
-        state.defaultTasks.forEach(task => {
-            addDefaultTaskEntry(task);
-        });
-    } else {
-        addDefaultTaskEntry();
-    }
+    globalProjects = state.projects || [];
+    globalDefaultTasks = state.defaultTasks || [];
 
-    if (state.projects && state.projects.length > 0) {
-        const container = document.getElementById('projects-container');
-        container.innerHTML = ''; // Clear default
-        state.projects.forEach((proj, index) => {
-            addProjectEntry(proj);
-        });
-    }
-
+    renderProjectsTable();
+    renderDefaultTasksTable();
     updateAllTaskProjectDropdowns();
+
+    // If we recovered from server, ensure localStorage is also updated
+    if (serverDataUsed) {
+        localStorage.setItem('pr_generator_state', JSON.stringify(state));
+    }
 }
+
+function renderDefaultTasksTable() {
+    const container = document.getElementById('default-tasks-table-body');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (globalDefaultTasks.length === 0) {
+        container.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 3rem; opacity:0.5;">No recurring tasks configured. Add one to automate your reports!</td></tr>';
+        return;
+    }
+
+    const dayMap = { '1': 'Mon', '2': 'Tue', '3': 'Wed', '4': 'Thu', '5': 'Fri', 'all': 'Daily' };
+    const typeLabels = {
+        'normal': 'Normal',
+        'meeting': '🏠 Meeting',
+        'database': '💾 DB/Srvr',
+        'holiday': '🎉 Holiday',
+        'leave': '🌴 Leave'
+    };
+
+    globalDefaultTasks.forEach((task, index) => {
+        const tr = document.createElement('tr');
+        const isActive = task.taskEnabled !== false;
+        
+        tr.innerHTML = `
+            <td>
+                <div style="font-weight: 600;">${task.taskName}</div>
+                <div style="font-size: 0.75rem; opacity: 0.5;">${task.taskRemarks || 'No default remarks'}</div>
+            </td>
+            <td><span class="badge" style="background: rgba(255,255,255,0.05); color: var(--text-main); border-color: var(--border);">${dayMap[task.taskDay] || task.taskDay}</span></td>
+            <td>${task.taskProject || '<span style="opacity:0.3">Global</span>'}</td>
+            <td>${typeLabels[task.taskType] || task.taskType}</td>
+            <td style="text-align: right;">
+                <span class="badge" style="background: ${isActive ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'}; color: ${isActive ? 'var(--success)' : 'var(--error)'}; border-color: ${isActive ? 'var(--success)' : 'var(--error)'};">
+                    ${isActive ? 'Active' : 'Disabled'}
+                </span>
+            </td>
+            <td>
+                <div class="action-btns">
+                    <button type="button" class="btn-icon" onclick="openTaskModal(${index})" title="Edit"><i class="fas fa-edit"></i></button>
+                    <button type="button" class="btn-icon delete" onclick="removeDefaultTask(${index})" title="Remove"><i class="fas fa-trash-alt"></i></button>
+                </div>
+            </td>
+        `;
+        container.appendChild(tr);
+    });
+    filterDefaultTasksTable();
+}
+
+function filterDefaultTasksTable() {
+    const query = (document.getElementById('defaults-search')?.value || '').toLowerCase().trim();
+    document.querySelectorAll('#default-tasks-table-body tr').forEach(tr => {
+        if (!query) { tr.style.display = ''; return; }
+        const text = tr.innerText.toLowerCase();
+        tr.style.display = text.includes(query) ? '' : 'none';
+    });
+}
+
+function openTaskModal(index = -1) {
+    const modal = document.getElementById('task-modal');
+    const title = document.getElementById('task-modal-title');
+    const form = document.getElementById('task-modal-form');
+    
+    updateAllTaskProjectDropdowns(); // Refresh projects
+    form.reset();
+    document.getElementById('modal-task-index').value = index;
+    
+    if (index >= 0) {
+        title.innerHTML = '<i class="fas fa-calendar-check"></i> Edit Recurring Task';
+        const t = globalDefaultTasks[index];
+        document.getElementById('modal-taskName').value = t.taskName;
+        document.getElementById('modal-taskDay').value = t.taskDay;
+        document.getElementById('modal-taskType').value = t.taskType;
+        document.getElementById('modal-taskProject').value = t.taskProject || '';
+        document.getElementById('modal-taskRemarks').value = t.taskRemarks || '';
+        document.getElementById('modal-taskEnabled').checked = t.taskEnabled !== false;
+        document.getElementById('modal-taskOnlyIfProjectActive').checked = t.taskOnlyIfProjectActive === true;
+    } else {
+        title.innerHTML = '<i class="fas fa-calendar-plus"></i> Add New Recurring Task';
+    }
+    
+    modal.style.display = 'flex';
+}
+
+function closeTaskModal() {
+    document.getElementById('task-modal').style.display = 'none';
+}
+
+function removeDefaultTask(index) {
+    const task = globalDefaultTasks[index];
+    showConfirm('Remove Task', `Are you sure you want to remove the recurring task "${task.taskName}"?`, () => {
+        globalDefaultTasks.splice(index, 1);
+        saveState();
+        renderDefaultTasksTable();
+    });
+}
+
+function renderProjectsTable() {
+    const container = document.getElementById('projects-table-body');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (globalProjects.length === 0) {
+        container.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 3rem; opacity:0.5;">No projects found. Add one to get started!</td></tr>';
+        return;
+    }
+
+    globalProjects.forEach((proj, index) => {
+        const tr = document.createElement('tr');
+        const isActive = proj.projectEnabled !== false;
+        tr.innerHTML = `
+            <td>
+                <div style="font-weight: 600;">${proj.projectName}</div>
+                <div style="font-size: 0.75rem; opacity: 0.5;">${proj.repoPath}</div>
+            </td>
+            <td>${proj.supervisorName}</td>
+            <td><i class="fab fa-${proj.repoPlatform}"></i> ${proj.repoPlatform.charAt(0).toUpperCase() + proj.repoPlatform.slice(1)}</td>
+            <td>${proj.repoWorkspace || 'N/A'} / ${proj.repoName || 'N/A'}</td>
+            <td style="text-align: right;">
+                <span class="badge" style="background: ${isActive ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'}; color: ${isActive ? 'var(--success)' : 'var(--error)'}; border-color: ${isActive ? 'var(--success)' : 'var(--error)'};">
+                    ${isActive ? 'Active' : 'Disabled'}
+                </span>
+            </td>
+            <td>
+                <div class="action-btns">
+                    <button type="button" class="btn-icon" onclick="openProjectModal(${index})" title="Edit"><i class="fas fa-edit"></i></button>
+                    <button type="button" class="btn-icon delete" onclick="removeProject(${index})" title="Remove"><i class="fas fa-trash-alt"></i></button>
+                </div>
+            </td>
+        `;
+        container.appendChild(tr);
+    });
+    filterProjectsTable();
+}
+
+function filterProjectsTable() {
+    const query = (document.getElementById('project-search')?.value || '').toLowerCase().trim();
+    document.querySelectorAll('#projects-table-body tr').forEach(tr => {
+        if (!query) { tr.style.display = ''; return; }
+        const text = tr.innerText.toLowerCase();
+        tr.style.display = text.includes(query) ? '' : 'none';
+    });
+}
+
+// Removed renderActiveProjectsList as per new layout UI simplification
+
+function openProjectModal(index = -1) {
+    const modal = document.getElementById('project-modal');
+    const title = document.getElementById('project-modal-title');
+    const form = document.getElementById('project-modal-form');
+    
+    // Reset form
+    form.reset();
+    document.getElementById('modal-project-index').value = index;
+    
+    if (index >= 0) {
+        title.innerHTML = '<i class="fas fa-edit"></i> Edit Project Details';
+        const p = globalProjects[index];
+        document.getElementById('modal-repoPath').value = p.repoPath;
+        document.getElementById('modal-projectName').value = p.projectName;
+        document.getElementById('modal-supervisorName').value = p.supervisorName;
+        document.getElementById('modal-repoPlatform').value = p.repoPlatform;
+        document.getElementById('modal-repoWorkspace').value = p.repoWorkspace || '';
+        document.getElementById('modal-repoName').value = p.repoName || '';
+        document.getElementById('modal-projectEnabled').checked = p.projectEnabled !== false;
+    } else {
+        title.innerHTML = '<i class="fas fa-folder-plus"></i> Add New Project';
+        document.getElementById('modal-projectEnabled').checked = true;
+    }
+    
+    modal.style.display = 'flex';
+}
+
+function closeProjectModal() {
+    document.getElementById('project-modal').style.display = 'none';
+}
+
+function removeProject(index) {
+    const proj = globalProjects[index];
+    showConfirm('Remove Project', `Are you sure you want to remove "${proj.projectName}"?`, () => {
+        globalProjects.splice(index, 1);
+        saveState();
+        renderProjectsTable();
+        updateAllTaskProjectDropdowns();
+    });
+}
+
+// Global modal submit handler
+document.addEventListener('DOMContentLoaded', () => {
+    const projectForm = document.getElementById('project-modal-form');
+    if (projectForm) {
+        projectForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const index = parseInt(document.getElementById('modal-project-index').value);
+            const data = {
+                repoPath: document.getElementById('modal-repoPath').value,
+                projectName: document.getElementById('modal-projectName').value,
+                supervisorName: document.getElementById('modal-supervisorName').value,
+                repoPlatform: document.getElementById('modal-repoPlatform').value,
+                repoWorkspace: document.getElementById('modal-repoWorkspace').value,
+                repoName: document.getElementById('modal-repoName').value,
+                projectEnabled: document.getElementById('modal-projectEnabled').checked
+            };
+
+            if (index >= 0) {
+                globalProjects[index] = data;
+            } else {
+                globalProjects.push(data);
+            }
+
+            saveState();
+            renderProjectsTable();
+            closeProjectModal();
+            updateAllTaskProjectDropdowns();
+            log(`Project "${data.projectName}" saved successfully.`, 'success');
+        });
+    }
+ 
+    const addBtn = document.getElementById('open-add-project-modal');
+    if (addBtn) addBtn.addEventListener('click', () => openProjectModal());
+    
+    // Task modal submit handler
+    const taskForm = document.getElementById('task-modal-form');
+    if (taskForm) {
+        taskForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const index = parseInt(document.getElementById('modal-task-index').value);
+            const data = {
+                taskName: document.getElementById('modal-taskName').value,
+                taskDay: document.getElementById('modal-taskDay').value,
+                taskType: document.getElementById('modal-taskType').value,
+                taskProject: document.getElementById('modal-taskProject').value,
+                taskRemarks: document.getElementById('modal-taskRemarks').value,
+                taskEnabled: document.getElementById('modal-taskEnabled').checked,
+                taskOnlyIfProjectActive: document.getElementById('modal-taskOnlyIfProjectActive').checked,
+            };
+ 
+            if (index >= 0) {
+                globalDefaultTasks[index] = data;
+            } else {
+                globalDefaultTasks.push(data);
+            }
+ 
+            saveState();
+            renderDefaultTasksTable();
+            closeTaskModal();
+            log(`Task "${data.taskName}" saved successfully.`, 'success');
+        });
+    }
+ 
+    const addTaskBtn = document.getElementById('open-add-task-modal');
+    if (addTaskBtn) addTaskBtn.addEventListener('click', () => openTaskModal());
+ 
+    // Close modal on escape
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeProjectModal();
+            closeTaskModal();
+        }
+    });
+ 
+    // Close on overlay click
+    const modal = document.getElementById('project-modal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeProjectModal();
+        });
+    }
+ 
+    const taskModal = document.getElementById('task-modal');
+    if (taskModal) {
+        taskModal.addEventListener('click', (e) => {
+            if (e.target === taskModal) closeTaskModal();
+        });
+    }
+
+    // Attach Search Handlers
+    const projectSearch = document.getElementById('project-search');
+    if (projectSearch) projectSearch.addEventListener('input', filterProjectsTable);
+
+    const defaultsSearch = document.getElementById('defaults-search');
+    if (defaultsSearch) defaultsSearch.addEventListener('input', filterDefaultTasksTable);
+});
 
 function updateDefaultFilename() {
     const name = document.getElementById('employeeName').value.trim();
@@ -280,199 +566,19 @@ function updateDefaultFilename() {
     return `PR - ${formattedName}${datePart}`;
 }
 
-function addProjectEntry(data = { repoPath: '', projectName: '', supervisorName: '', repoPlatform: 'bitbucket', repoWorkspace: '', repoName: '' }) {
-    const container = document.getElementById('projects-container');
-    const newEntry = document.createElement('div');
-    newEntry.className = 'project-entry glass';
-    newEntry.innerHTML = `
-        <button type="button" class="remove-project">×</button>
-        <h3 class="full-width" style="margin-top:0; color:var(--primary); font-size:1rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
-            <i class="fas fa-folder-open"></i> Project Details
-        </h3>
-        
-        <!-- Local Section -->
-        <div class="input-group full-width">
-            <label><i class="fas fa-desktop"></i> Local Project Folder Directory</label>
-            <input type="text" class="repoPath" placeholder="C:\\path\\to\\your\\repository" value="${data.repoPath}">
-        </div>
-
-        <div class="input-group">
-            <label><i class="fas fa-tag"></i> Name</label>
-            <input type="text" class="projectName" placeholder="Project Name" value="${data.projectName}">
-        </div>
-        <div class="input-group">
-            <label><i class="fas fa-user-shield"></i> Supervisor</label>
-            <input type="text" class="supervisorName" placeholder="Supervisor Name" value="${data.supervisorName}">
-        </div>
-
-        <!-- Git Identifier Section (2x2 Grid feel) -->
-        <div class="input-group">
-            <label><i class="fab fa-git-alt"></i> Platform</label>
-            <select class="repoPlatform">
-                <option value="bitbucket" ${data.repoPlatform === 'bitbucket' ? 'selected' : ''}>Bitbucket</option>
-                <option value="github" ${data.repoPlatform === 'github' ? 'selected' : ''}>GitHub</option>
-            </select>
-        </div>
-        <div class="input-group">
-            <label><i class="fas fa-users-gear"></i> Workspace</label>
-            <input type="text" class="repoWorkspace" placeholder="telcomliveph" value="${data.repoWorkspace || ''}">
-        </div>
-        <div class="input-group full-width">
-            <label><i class="fas fa-code-branch"></i> Repository Name</label>
-            <input type="text" class="repoName" placeholder="e.g., project-backend" value="${data.repoName || ''}">
-        </div>
-    `;
-    container.appendChild(newEntry);
-
-    newEntry.querySelector('.remove-project').addEventListener('click', () => {
-        const currentName = newEntry.querySelector('.projectName').value || 'this project';
-        showConfirm('Remove Project', `Remove project "${currentName}"?`, () => {
-            newEntry.classList.add('removing');
-            setTimeout(() => {
-                newEntry.remove();
-                saveState();
-            }, 350);
-        });
-    });
-
-    // Auto-save on input change
-    newEntry.querySelectorAll('input, select').forEach(input => {
-        input.addEventListener('input', () => {
-            saveState();
-            if (input.classList.contains('projectName') || input.classList.contains('supervisorName')) {
-                updateAllTaskProjectDropdowns();
-            }
-        });
-    });
+// Clean up old function
+function addProjectEntry() {
+    console.warn("addProjectEntry is deprecated. Use the Projects List tab.");
 }
 
-document.getElementById('add-project').addEventListener('click', () => {
-    addProjectEntry();
-    saveState();
-    updateAllTaskProjectDropdowns();
-});
-
-function addDefaultTaskEntry(data = { taskName: '', taskDay: '1', taskProject: '', taskSupervisor: '', taskRemarks: '', taskEnabled: true, taskType: 'normal' }) {
-    const container = document.getElementById('default-tasks-container');
-    const newEntry = document.createElement('div');
-    newEntry.className = 'default-task-entry';
-    newEntry.style.display = 'flex';
-    newEntry.style.flexDirection = 'column';
-    newEntry.style.gap = '1rem';
-    newEntry.style.marginBottom = '1.5rem';
-    newEntry.style.padding = '1rem';
-    newEntry.style.background = 'rgba(255, 255, 255, 0.02)';
-    newEntry.style.border = '1px solid var(--border)';
-    newEntry.style.borderRadius = '8px';
-    newEntry.style.position = 'relative';
-    
-    // Get current project list
-    const projects = getAvailableProjects();
-    let projectOptions = '<option value="">-- Select Project --</option>';
-    projects.forEach(p => {
-        projectOptions += `<option value="${p.projectName}" ${p.projectName === data.taskProject ? 'selected' : ''} data-supervisor="${p.supervisorName}">${p.projectName}</option>`;
-    });
-
-    newEntry.innerHTML = `
-        <button type="button" class="remove-task btn-secondary" style="position: absolute; top: 10px; right: 10px; height: 30px; width: 30px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; border-radius: 50%;">×</button>
-        <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-right: 40px;">
-            <div class="input-group" style="flex: 2; min-width: 200px;">
-                <label>Task Name</label>
-                <input type="text" class="taskName" placeholder="e.g., Weekly Meeting" value="${data.taskName || ''}">
-            </div>
-            <div class="input-group" style="flex: 1; min-width: 150px;">
-                <label>Day of Week</label>
-                <select class="taskDay">
-                    <option value="1" ${data.taskDay == '1' ? 'selected' : ''}>Monday</option>
-                    <option value="2" ${data.taskDay == '2' ? 'selected' : ''}>Tuesday</option>
-                    <option value="3" ${data.taskDay == '3' ? 'selected' : ''}>Wednesday</option>
-                    <option value="4" ${data.taskDay == '4' ? 'selected' : ''}>Thursday</option>
-                    <option value="5" ${data.taskDay == '5' ? 'selected' : ''}>Friday</option>
-                    <option value="all" ${data.taskDay == 'all' ? 'selected' : ''}>Everyday</option>
-                </select>
-            </div>
-            <div class="input-group" style="flex: 1; min-width: 150px;">
-                <label>Report Type / Color</label>
-                <select class="taskType">
-                    <option value="normal" ${data.taskType === 'normal' ? 'selected' : '' }>Normal Task (Clear)</option>
-                    <option value="meeting" ${data.taskType === 'meeting' ? 'selected' : '' }>🏠 Meeting (Blue)</option>
-                    <option value="database" ${data.taskType === 'database' ? 'selected' : '' }>💾 Database & Server (Gray)</option>
-                    <option value="holiday" ${data.taskType === 'holiday' ? 'selected' : '' }>🎉 Holiday (Green)</option>
-                    <option value="leave" ${data.taskType === 'leave' ? 'selected' : '' }>🌴 Leave (Orange)</option>
-                </select>
-            </div>
-        </div>
-        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-            <div class="input-group" style="flex: 1; min-width: 150px;">
-                <label>Project Name</label>
-                <select class="taskProject" data-value="${data.taskProject || ''}">
-                    ${projectOptions}
-                </select>
-            </div>
-            <div class="input-group" style="flex: 1; min-width: 150px;">
-                <label>Supervisor <small>(Auto-filled)</small></label>
-                <input type="text" class="taskSupervisor" placeholder="Supervisor Name" value="${data.taskSupervisor || ''}" readonly style="background: rgba(255,255,255,0.03); opacity: 0.7;">
-            </div>
-            <div class="input-group" style="flex: 1; min-width: 150px;">
-                <label>Remarks</label>
-                <input type="text" class="taskRemarks" placeholder="Remarks" value="${data.taskRemarks || ''}">
-            </div>
-        </div>
-        <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 2rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem;">
-            <label class="switch-container">
-                <div class="switch">
-                    <input type="checkbox" class="taskEnabled" ${data.taskEnabled !== false ? 'checked' : ''}>
-                    <span class="slider"></span>
-                </div>
-                <span class="switch-label">Include to Report</span>
-            </label>
-            <label class="switch-container">
-                <div class="switch">
-                    <input type="checkbox" class="taskOnlyIfProjectActive" ${data.taskOnlyIfProjectActive === true ? 'checked' : ''}>
-                    <span class="slider"></span>
-                </div>
-                <span class="switch-label">Only if project has commits</span>
-            </label>
-        </div>
-    `;
-    
-    container.appendChild(newEntry);
-    
-    const select = newEntry.querySelector('.taskProject');
-    const supervisorInput = newEntry.querySelector('.taskSupervisor');
-
-    select.addEventListener('change', () => {
-        const option = select.options[select.selectedIndex];
-        supervisorInput.value = option.getAttribute('data-supervisor') || '';
-        select.setAttribute('data-value', select.value);
-        saveState();
-    });
-
-    newEntry.querySelector('.remove-task').addEventListener('click', () => {
-        const currentName = newEntry.querySelector('.taskName').value || 'this task';
-        showConfirm('Remove Task', `Remove default task "${currentName}"?`, () => {
-            newEntry.classList.add('removing');
-            setTimeout(() => {
-                newEntry.remove();
-                saveState();
-            }, 350);
-        });
-    });
-
-    newEntry.querySelectorAll('input, select').forEach(input => {
-        input.addEventListener('input', () => {
-            saveState();
-        });
-    });
+// Deprecated old function
+function addDefaultTaskEntry() {
+    console.warn("addDefaultTaskEntry is deprecated. Use the Defaults tab table.");
 }
 
-const addDefaultTaskBtn = document.getElementById('add-default-task');
-if (addDefaultTaskBtn) {
-    addDefaultTaskBtn.addEventListener('click', () => {
-        addDefaultTaskEntry();
-        saveState();
-    });
-}
+// Deprecated old button logic
+const oldAddTaskBtn = document.getElementById('add-default-task');
+if (oldAddTaskBtn) oldAddTaskBtn.style.display = 'none';
 
 // Auto-save global inputs
 ['employeeName', 'employeeId', 'author', 'since', 'until', 'holidayDates'].forEach(id => {
@@ -610,18 +716,19 @@ async function handleFormSubmit(e) {
 
     const since = document.getElementById('since').value;
     const until = document.getElementById('until').value;
-    const projects = Array.from(document.querySelectorAll('.project-entry')).map(entry => {
-        const platform = entry.querySelector('.repoPlatform').value;
-        const workspace = entry.querySelector('.repoWorkspace').value;
-        const repoName = entry.querySelector('.repoName').value;
+    const activeProjects = globalProjects.filter(p => p.projectEnabled !== false);
+    const projects = activeProjects.map(p => {
+        const platform = p.repoPlatform;
+        const workspace = p.repoWorkspace;
+        const repoName = p.repoName;
         let baseUrl = '';
         if (workspace && repoName) {
             baseUrl = platform === 'bitbucket' ? `https://bitbucket.org/${workspace}/${repoName}/commits/` : `https://github.com/${workspace}/${repoName}/commit/`;
         }
         return {
-            repoPath: entry.querySelector('.repoPath').value,
-            projectName: entry.querySelector('.projectName').value,
-            supervisorName: entry.querySelector('.supervisorName').value,
+            repoPath: p.repoPath,
+            projectName: p.projectName,
+            supervisorName: p.supervisorName,
             baseUrl: baseUrl
         };
     });
@@ -634,16 +741,22 @@ async function handleFormSubmit(e) {
     const data = {
         since, until, author: document.getElementById('author').value,
         projects,
-        defaultTasks: Array.from(document.querySelectorAll('.default-task-entry')).map(entry => ({
-            taskName: entry.querySelector('.taskName').value,
-            taskDay: entry.querySelector('.taskDay').value,
-            taskProject: entry.querySelector('.taskProject').value,
-            taskSupervisor: entry.querySelector('.taskSupervisor').value,
-            taskRemarks: entry.querySelector('.taskRemarks').value,
-            taskEnabled: entry.querySelector('.taskEnabled').checked,
-            taskOnlyIfProjectActive: entry.querySelector('.taskOnlyIfProjectActive').checked,
-            taskType: entry.querySelector('.taskType').value
-        })).filter(t => t.taskName.trim() !== '' && t.taskEnabled)
+        defaultTasks: globalDefaultTasks.map(t => {
+            const proj = globalProjects.find(p => p.projectName === t.taskProject);
+            return {
+                ...t,
+                taskSupervisor: proj ? proj.supervisorName : ''
+            };
+        }).filter(t => {
+            const isBasicEnabled = t.taskName.trim() !== '' && t.taskEnabled;
+            if (!isBasicEnabled) return false;
+            // If task is specific to a project, check if that project is enabled
+            if (t.taskProject) {
+                const proj = globalProjects.find(p => p.projectName === t.taskProject);
+                if (proj && proj.projectEnabled === false) return false;
+            }
+            return true;
+        })
     };
 
     startLoadingAnimation("Analyzing History");
