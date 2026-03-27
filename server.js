@@ -164,7 +164,8 @@ async function getLogData(params) {
                 taskType: 'normal',
                 repoPlatform: project.repoPlatform,
                 repoWorkspace: project.repoWorkspace,
-                repoName: project.repoName
+                repoName: project.repoName,
+                link: baseUrl ? `${baseUrl}${hash}` : ''
             });
         });
     }
@@ -253,7 +254,8 @@ async function getLogData(params) {
                             hash: '',
                             repoPlatform: '',
                             repoWorkspace: '',
-                            repoName: ''
+                            repoName: '',
+                            link: ''
                         });
                     }
                 });
@@ -272,7 +274,8 @@ async function getLogData(params) {
                 hash: '',
                 repoPlatform: '',
                 repoWorkspace: '',
-                repoName: ''
+                repoName: '',
+                link: ''
             });
         } else {
             reportRows.push(...entriesForDay);
@@ -333,8 +336,19 @@ app.post('/generate-report', async (req, res) => {
         sheet.mergeCells('A1:I1');
         const titleCell = sheet.getCell('A1');
         titleCell.value = 'TLC PROGRESS REPORT';
-        titleCell.font = { bold: true, size: 14 };
+        titleCell.font = { bold: true, size: 16 }; // Increased size slightly for premium feel
         titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        sheet.getRow(1).height = 35; // Added height for better breathing room as seen in photos
+        
+        // Ensure all cells in row 1 have border for the merge to look correct
+        for (let i = 1; i <= 9; i++) {
+            sheet.getRow(1).getCell(i).border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+        }
 
         sheet.addRow(['Employee', employeeName]);
         sheet.addRow(['Employee ID', employeeId]);
@@ -347,10 +361,12 @@ app.post('/generate-report', async (req, res) => {
         const headerRow = sheet.addRow([
             'Date', 'Task', 'Deadline', 'Completion Date', 'Status', 'Remarks', 'Project', 'Supervisor', 'Git Link'
         ]);
+        // Style the headers
         headerRow.font = { bold: true };
         headerRow.eachCell((cell) => {
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
             cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
         });
 
         let lastDate = "";
@@ -389,19 +405,45 @@ app.post('/generate-report', async (req, res) => {
             else if (entry.taskType === 'holiday') fillColor = 'FF90EE90';  // Light Green
             else if (entry.taskType === 'leave') fillColor = 'FFFFD8B1';    // Light Orange
 
-            row.eachCell((cell) => {
+            // Apply fill, borders, and DEFAULT alignment to ALL cells in the row (1 to 9)
+            for (let i = 1; i <= 9; i++) {
+                const cell = row.getCell(i);
                 cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
                 if (fillColor) {
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
                 }
-            });
+                
+                // Default alignment for normal rows
+                if (i === 2) { 
+                    // Wrap text for task description for readability
+                    cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+                } else {
+                    cell.alignment = { vertical: 'top', horizontal: 'center' };
+                }
+            }
+
+            // Special handling for holidays: merge B-I and center EVERYTHING
+            if (entry.taskType === 'holiday') {
+                const rowNum = row.number;
+                sheet.mergeCells(rowNum, 2, rowNum, 9); // Column B to I
+                
+                // Center EVERYTHING horizontally and vertically, and enable wrapText
+                for (let i = 1; i <= 9; i++) {
+                    const cell = row.getCell(i);
+                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                }
+                
+                const holidayCell = row.getCell(2);
+                holidayCell.font = { bold: true };
+            }
         });
 
+        // Set column widths but avoid overriding specific cell alignment
         sheet.columns.forEach((column, i) => {
             const colIndex = i + 1;
             if (colIndex === 2) { 
                 column.width = 40; 
-                column.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+                // Don't set column.alignment here as it overrides row-specific settings
             } else {
                 let maxColumnLength = 0;
                 column.eachCell({ includeEmpty: true }, (cell) => {
@@ -409,7 +451,7 @@ app.post('/generate-report', async (req, res) => {
                     if (columnLength > maxColumnLength) maxColumnLength = columnLength;
                 });
                 column.width = maxColumnLength < 12 ? 12 : maxColumnLength + 2;
-                column.alignment = { vertical: 'top', horizontal: 'left' };
+                // Don't set column.alignment here
             }
         });
 

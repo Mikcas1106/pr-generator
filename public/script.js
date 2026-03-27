@@ -818,11 +818,12 @@ function renderPreviewTable() {
                 `<option value="${o.value}" ${row.taskType === o.value ? 'selected' : ''}>${o.label}</option>`
             ).join('');
 
-            const gitUrl = (row.hash && row.repoPlatform && row.repoWorkspace && row.repoName) ? (
+            const gitUrl = row.link || ((row.hash && row.repoPlatform && row.repoWorkspace && row.repoName) ? (
                 row.repoPlatform === 'bitbucket' 
                     ? `https://bitbucket.org/${row.repoWorkspace}/${row.repoName}/commits/${row.hash}`
                     : `https://github.com/${row.repoWorkspace}/${row.repoName}/commit/${row.hash}`
-            ) : null;
+            ) : null);
+            if (!row.link && gitUrl) row.link = gitUrl;
 
             tr.innerHTML = `
                 <td style="text-align: center; vertical-align: middle;">
