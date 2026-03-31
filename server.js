@@ -340,6 +340,78 @@ app.post('/save-config', (req, res) => {
     }
 });
 
+app.post('/list-folders', async (req, res) => {
+    let { currentPath, search, deepScan } = req.body;
+    if (!currentPath) currentPath = os.homedir();
+    try {
+        if (!fs.existsSync(currentPath)) currentPath = os.homedir();
+        const folders = [];
+        const parentPath = path.dirname(currentPath);
+        
+        // Add parent directory link
+        if (parentPath !== currentPath && !search && !deepScan) {
+            folders.push({ name: '.. (Back)', path: parentPath, isParent: true });
+        }
+
+        if (deepScan) {
+            const findGitRepos = (dir, depth = 0) => {
+                if (depth > 2) return [];
+                let repos = [];
+                try {
+                    const items = fs.readdirSync(dir);
+                    if (items.includes('.git')) {
+                        return [{ name: path.basename(dir) + ' (GIT)', path: dir, isGit: true }];
+                    }
+                    items.forEach(item => {
+                        const fullPath = path.join(dir, item);
+                        if (fs.statSync(fullPath).isDirectory() && !item.startsWith('.') && item !== 'node_modules') {
+                            repos = repos.concat(findGitRepos(fullPath, depth + 1));
+                        }
+                    });
+                } catch (e) {}
+                return repos;
+            };
+            folders.push(...findGitRepos(currentPath));
+        } else {
+            const items = fs.readdirSync(currentPath);
+            items.forEach(item => {
+                try {
+                    const fullPath = path.join(currentPath, item);
+                    if (fs.statSync(fullPath).isDirectory()) {
+                        if (search && !item.toLowerCase().includes(search.toLowerCase())) return;
+                        const isGit = fs.existsSync(path.join(fullPath, '.git'));
+                        folders.push({ name: item + (isGit ? ' 🔒' : ''), path: fullPath, isGit });
+                    }
+                } catch (e) {}
+            });
+        }
+
+        const enrichedFolders = await Promise.all(folders.map(async f => {
+            if (f.isGit) {
+                const meta = await new Promise(resolve => {
+                    exec('git config --get remote.origin.url', { cwd: f.path }, (err, stdout) => {
+                        if (err || !stdout) return resolve(null);
+                        const url = stdout.trim();
+                        const parts = url.replace(/\.git$/, '').split(/[:/]/);
+                        resolve({ 
+                            url, 
+                            workspace: parts[parts.length - 2] || '', 
+                            repo: parts[parts.length - 1] || '', 
+                            platform: url.includes('github.com') ? 'github' : 'bitbucket' 
+                        });
+                    });
+                });
+                return { ...f, gitMeta: meta };
+            }
+            return f;
+        }));
+
+        res.json({ success: true, currentPath, folders: enrichedFolders.slice(0, 100) });
+    } catch (e) { 
+        res.json({ success: false, message: e.message }); 
+    }
+});
+
 app.post('/health-check', async (req, res) => {
     const { projects } = req.body;
     if (!projects || !Array.isArray(projects)) {

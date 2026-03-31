@@ -97,9 +97,116 @@ function loadState() {
     }
 }
 
+async function triggerBrowse() {
+    const pInput = document.getElementById('modal-repoPath');
+    loadFolder(pInput ? pInput.value : '');
+}
+
+async function loadFolder(path, search = "", deepScan = false) {
+    const results = document.getElementById('browse-results');
+    const modal = document.getElementById('browse-modal');
+    const pathEl = document.getElementById('browse-path');
+    if (!results || !modal || !pathEl) return;
+
+    modal.style.display = 'flex';
+    results.innerHTML = '<div style="padding: 3rem; text-align:center; opacity:0.5;"><i class="fas fa-circle-notch fa-spin"></i> Reading directory...</div>';
+    
+    try {
+        const response = await fetch('http://localhost:3001/list-folders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ currentPath: path, search, deepScan })
+        });
+        const result = await response.json();
+        if (result.success) {
+            pathEl.textContent = result.currentPath;
+            let html = '';
+            if (result.folders.length === 0) {
+                html = '<div style="padding: 5rem; text-align: center; opacity: 0.3;">No folders found.</div>';
+            } else {
+                result.folders.forEach(f => {
+                    const icon = f.isParent ? 'fa-level-up-alt' : (f.isGit ? 'fa-lock' : 'fa-folder');
+                    const color = f.isParent ? '#ffc107' : (f.isGit ? 'var(--primary)' : '#ffcc80');
+                    const gitMetaStr = f.gitMeta ? JSON.stringify(f.gitMeta).replace(/"/g, '&quot;') : '';
+                    
+                    html += `
+                        <div class="browse-item" onclick="selectFolderStep('${f.path.replace(/\\/g,'\\\\')}')" 
+                             style="padding: 0.8rem 1.5rem; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;">
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <i class="fas ${icon}" style="color: ${color}; width: 22px; text-align: center;"></i>
+                                <span style="${f.isGit ? 'font-weight: 600; color: white;' : 'opacity: 0.8; font-size: 0.85rem;'}">${f.name}</span>
+                            </div>
+                            <button type="button" class="btn-primary" onclick="finalizeFolder(event, '${f.path.replace(/\\/g,'\\\\')}', '${gitMetaStr}')" 
+                                    style="margin:0; padding: 4px 12px; font-size: 0.7rem; height: auto; border-radius: 6px; ${f.isGit ? '' : 'background:rgba(255,255,255,0.1); border:1px solid var(--border); box-shadow:none;'}">Select</button>
+                        </div>
+                    `;
+                });
+            }
+            results.innerHTML = html;
+        } else {
+            results.innerHTML = `<div style="padding: 3rem; color: var(--error); text-align: center;">${result.message}</div>`;
+        }
+    } catch(e) { 
+        results.innerHTML = `<div style="padding: 3rem; color: var(--error); text-align: center;">Connection failed</div>`;
+    }
+}
+
+function selectFolderStep(p) { loadFolder(p); }
+
+function finalizeFolder(e, p, metaStr = '') {
+    e.stopPropagation();
+    const pathInput = document.getElementById('modal-repoPath');
+    const nameInput = document.getElementById('modal-projectName');
+    const workspaceInput = document.getElementById('modal-repoWorkspace');
+    const repoInput = document.getElementById('modal-repoName');
+    const platformInput = document.getElementById('modal-repoPlatform');
+
+    const selectPath = () => {
+        if (pathInput) pathInput.value = p;
+        document.getElementById('browse-modal').style.display = 'none';
+        if (metaStr && metaStr !== '') {
+            try {
+                const meta = JSON.parse(metaStr.replace(/&quot;/g, '"'));
+                if (nameInput && (nameInput.value === '' || nameInput.value === 'Add New Project')) {
+                    nameInput.value = meta.repo.charAt(0).toUpperCase() + meta.repo.slice(1).replace(/[-_]/g, ' ');
+                }
+                if (workspaceInput) workspaceInput.value = meta.workspace;
+                if (repoInput) repoInput.value = meta.repo;
+                if (platformInput) platformInput.value = meta.platform;
+                log(`Auto-detected: ${meta.platform}/${meta.workspace}/${meta.repo}`, 'success');
+            } catch(err) { console.error(err); }
+        } else if (nameInput && nameInput.value === '') {
+            nameInput.value = p.split(/[\\/]/).pop();
+        }
+    };
+
+    if (!metaStr || metaStr === '') {
+        showConfirm('Non-Git Folder', 'This folder is not a Git repository. Workspace and Repo details cannot be auto-detected. Continue?', selectPath);
+    } else selectPath();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     loadState();
     initParticles();
+    
+    // Wire up Browse Handlers
+    const bSearch = document.getElementById('browse-search-input');
+    if (bSearch) bSearch.addEventListener('input', (e) => {
+        const path = document.getElementById('browse-path').textContent;
+        loadFolder(path, e.target.value);
+    });
+
+    const dScan = document.getElementById('btn-deep-scan');
+    if (dScan) dScan.addEventListener('click', () => {
+        const path = document.getElementById('browse-path').textContent;
+        loadFolder(path, "", true);
+    });
+
+    const dJump = document.getElementById('btn-desktop-jump');
+    if (dJump) dJump.addEventListener('click', () => {
+        // Simple heuristic for desktop path (adjusting as needed by OS if possible)
+        loadFolder('C:/Users/Admin/Desktop');
+    });
 
     if (!localStorage.getItem('onboarding_complete')) {
         document.getElementById('onboarding-modal').style.display = 'flex';

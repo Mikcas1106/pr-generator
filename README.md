@@ -6,6 +6,7 @@ A premium, localized tool designed to automate the generation of professional pr
 
 ## 🚀 Key Features
 
+*   **📁 Smart Folder Explorer**: Browse local directories directly from the web UI to auto-detect a repository's Git platform (GitHub/Bitbucket), workspace, and name.
 *   **🌴 Smart Leave Automation**: New **Leave Range Manager** allows you to block out vacation dates. Recurring tasks are automatically suppressed, and "On Leave" entries are added for you.
 *   **🩺 Repository Health Pulse**: Instant repository scanning! Detect missing folders, invalid Git paths, and uncommitted drafts before you generate your report.
 *   **🗓️ Multi-Day Tasking**: Select multiple specific days for any recurring task via a modern **Custom Dropdown**.
@@ -30,7 +31,7 @@ Ensure you have the following installed on your machine:
 Fill in the **Employee Information** section. The **Git Email Filter** must match the email you use for your commits (e.g., `git config user.email`).
 
 ### 2. Connect Your Projects
-Add your local repository paths. Use the full directory path (e.g., `C:\Projects\my-repo`). 
+Click **Add New Project** and use the **Browse** button to open the Folder Explorer. Select your local Git repository, and the tool will automatically detect the Git Platform, Workspace, and Name.
 - **Pro-Tip**: Use the **Health Check** button to verify all your paths are valid and up to date before generating!
 
 ### 3. Setup Recurring & Leave

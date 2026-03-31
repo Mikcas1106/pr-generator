@@ -605,9 +605,16 @@
             <form id="project-modal-form" class="form-grid">
                 <input type="hidden" id="modal-project-index" value="-1">
 
-                <div class="input-group full-width">
+                <div class="input-group full-width" style="margin-bottom: 0.5rem;">
                     <label><i class="fas fa-desktop"></i> Local Project Folder Directory</label>
-                    <input type="text" id="modal-repoPath" placeholder="C:\path\to\your\repository" required>
+                    <div style="display: flex; gap: 0.8rem; width: 100%;">
+                        <input type="text" id="modal-repoPath" placeholder="C:\path\to\your\repository" required
+                            style="flex: 1; background: rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.08);">
+                        <button type="button" class="btn-secondary" onclick="triggerBrowse()"
+                            style="padding: 0 1.2rem; height: 48px; border-radius: 12px; display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0; background: rgba(255,255,255,0.05);">
+                            <i class="fas fa-search"></i> Browse
+                        </button>
+                    </div>
                 </div>
 
                 <div class="section-grid" style="grid-template-columns: 1fr 1fr; width: 100%;">
@@ -624,20 +631,23 @@
                 <div class="section-grid" style="grid-template-columns: 1fr 1fr; width: 100%;">
                     <div class="input-group">
                         <label><i class="fab fa-git-alt"></i> Platform</label>
-                        <select id="modal-repoPlatform">
+                        <select id="modal-repoPlatform" disabled
+                            style="opacity: 0.6; cursor: not-allowed; background: rgba(0,0,0,0.1);">
                             <option value="bitbucket">Bitbucket</option>
                             <option value="github">GitHub</option>
                         </select>
                     </div>
                     <div class="input-group">
                         <label><i class="fas fa-users-gear"></i> Workspace</label>
-                        <input type="text" id="modal-repoWorkspace" placeholder="e.g., MyTeam">
+                        <input type="text" id="modal-repoWorkspace" placeholder="e.g., MyTeam" readonly
+                            style="opacity: 0.6; cursor: not-allowed; background: rgba(0,0,0,0.1);">
                     </div>
                 </div>
 
                 <div class="input-group full-width">
                     <label><i class="fas fa-code-branch"></i> Repository Name</label>
-                    <input type="text" id="modal-repoName" placeholder="e.g., project-backend">
+                    <input type="text" id="modal-repoName" placeholder="e.g., project-backend" readonly
+                        style="opacity: 0.6; cursor: not-allowed; background: rgba(0,0,0,0.1);">
                 </div>
 
                 <div class="section-grid"
@@ -902,6 +912,17 @@
             </div>
 
             <div style="margin-bottom: 2.5rem;">
+                <!-- New Feature: Folder Browser -->
+                <div style="display: flex; gap: 1rem; margin-bottom: 1.2rem;">
+                    <div style="color: #a855f7; flex-shrink: 0;"><i class="fas fa-folder-tree fa-lg"></i></div>
+                    <div>
+                        <h4 style="margin-bottom: 0.2rem;">📁 Smart Folder Explorer</h4>
+                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">Browse your local
+                            directories directly from the web UI! Select a folder and we'll automatically detect your
+                            repository's Git platform, workspace, and name.</p>
+                    </div>
+                </div>
+
                 <!-- New Feature: Leave Automation -->
                 <div style="display: flex; gap: 1rem; margin-bottom: 1.2rem;">
                     <div style="color: #fb923c; flex-shrink: 0;"><i class="fas fa-calendar-times fa-lg"></i></div>
@@ -952,6 +973,66 @@
                 style="padding: 1rem; font-weight: bold; border-radius: 12px; letter-spacing: 1px; margin-top: 0;">
                 LET'S GO! 🚀
             </button>
+        </div>
+    </div>
+
+    <!-- Folder Browse Modal -->
+    <div id="browse-modal" class="modal-overlay">
+        <div class="modal-content glass animate-scale-up"
+            style="max-width: 700px; padding: 0; overflow: hidden; border-radius: 24px;">
+            <!-- Header -->
+            <div
+                style="padding: 1.5rem 2rem; background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div
+                        style="width: 40px; height: 40px; background: rgba(var(--primary-rgb), 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--primary);">
+                        <i class="fas fa-folder-tree" style="font-size: 1.2rem;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.1rem; color: white;">Folder Explorer</h3>
+                        <p style="margin: 0; font-size: 0.75rem; opacity: 0.5;">Select your local Git repository</p>
+                    </div>
+                </div>
+                <button type="button" class="close-modal"
+                    onclick="document.getElementById('browse-modal').style.display='none'">&times;</button>
+            </div>
+
+            <!-- Toolbar -->
+            <div id="browse-toolbar"
+                style="padding: 1rem 2rem; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 1rem;">
+                <!-- Quick Jumps -->
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button type="button" class="btn-secondary" onclick="loadFolder('')"
+                        style="flex: 1; min-width: 80px; padding: 8px; font-size: 0.75rem;"><i class="fas fa-home"></i>
+                        Home</button>
+                    <button type="button" class="btn-secondary" id="btn-desktop-jump"
+                        style="flex: 1; min-width: 80px; padding: 8px; font-size: 0.75rem;"><i
+                            class="fas fa-desktop"></i> Desktop</button>
+                    <button type="button" class="btn-primary" id="btn-deep-scan"
+                        style="flex: 2; min-width: 150px; padding: 8px; font-size: 0.75rem; background: linear-gradient(135deg, #6366f1, #a855f7); border: none; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);"><i
+                            class="fas fa-satellite-dish"></i> Deep Scan Repo</button>
+                </div>
+
+                <!-- Search -->
+                <div style="position: relative;">
+                    <i class="fas fa-search"
+                        style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; opacity: 0.4;"></i>
+                    <input type="text" id="browse-search-input" placeholder="Search folders in current path..."
+                        style="width: 100%; border-radius: 12px; padding: 12px 15px 12px 40px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); font-size: 0.85rem;">
+                </div>
+            </div>
+
+            <!-- Path Breadcrumb -->
+            <div id="browse-path"
+                style="padding: 0.6rem 2rem; font-family: monospace; font-size: 0.7rem; opacity: 0.5; background: rgba(0,0,0,0.1); border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                C:\Users\Admin
+            </div>
+
+            <!-- Results -->
+            <div id="browse-results"
+                style="height: 350px; overflow-y: auto; background: rgba(0,0,0,0.05); padding: 0.5rem;">
+                <!-- Skeleton items or results -->
+            </div>
         </div>
     </div>
 

@@ -799,7 +799,8 @@ select:focus {
 #loading-modal,
 #success-modal,
 #error-modal,
-#confirm-modal {
+#confirm-modal,
+#browse-modal {
     z-index: 2000;
 }
 
@@ -1410,4 +1411,48 @@ input:checked+.slider:before {
 
 .switch-container:has(input:checked) .switch-label {
     color: var(--success);
+}
+
+/* Folder Browse Styles */
+.browse-item {
+    background: transparent;
+    border-radius: 8px;
+    margin-bottom: 2px;
+}
+
+.browse-item:hover {
+    background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.browse-item .btn-primary:hover {
+    transform: scale(1.05);
+    background: var(--primary-glow);
+}
+
+#browse-results::-webkit-scrollbar {
+    width: 6px;
+}
+
+#browse-results::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+#browse-results::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+#browse-results::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+#browse-path {
+    background: rgba(0, 0, 0, 0.4) !important;
+    border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+#browse-search-input:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 15px var(--primary-glow);
+    outline: none;
 }
