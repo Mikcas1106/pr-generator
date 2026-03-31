@@ -204,11 +204,15 @@ async function getLogData(params) {
     }
 
     const reportRows = [];
+    const leaveSet = new Set(params.leaveDates || []);
+
     allDaysInRange.forEach(dStr => {
         const dFmt = formatDate(dStr);
         let entriesForDay = [];
         
         const hMatch = Array.isArray(holidays) ? holidays.find(h => h.date === dStr) : null;
+        const isLeave = leaveSet.has(dStr);
+
         if (hMatch) {
             entriesForDay.push({
                 date: dStr,
@@ -219,20 +223,35 @@ async function getLogData(params) {
                 remarks: '',
                 link: '',
                 taskType: 'holiday',
-                hash: '', // Added hash
-                repoPlatform: '', // Added repoPlatform
-                repoWorkspace: '', // Added repoWorkspace
-                repoName: '' // Added repoName
+                hash: '',
+                repoPlatform: '',
+                repoWorkspace: '',
+                repoName: ''
             });
-        } 
+        } else if (isLeave) {
+            entriesForDay.push({
+                date: dStr,
+                dateFmt: dFmt,
+                subject: 'On Leave',
+                projectName: '',
+                supervisorName: '',
+                remarks: 'Vacation/Sick Leave',
+                link: '',
+                taskType: 'leave',
+                hash: '',
+                repoPlatform: '',
+                repoWorkspace: '',
+                repoName: ''
+            });
+        }
 
         // Always include commits if they exist, even if it's a holiday
         if (allCommitsByDate[dStr]) {
             allCommitsByDate[dStr].forEach(c => entriesForDay.push({ ...c, date: dStr, dateFmt: dFmt, remarks: '' }));
         }
         
-        // Only include default tasks if it's NOT a holiday
-        if (!hMatch) {
+        // Only include default tasks if it's NOT a holiday and NOT on leave
+        if (!hMatch && !isLeave) {
             const dObj = parseYYYYMMDD(dStr);
             const dayOfWeek = dObj.getDay().toString();
             if (defaultTasks && Array.isArray(defaultTasks)) {
@@ -242,7 +261,11 @@ async function getLogData(params) {
                         return; // Skip this task because project is inactive
                     }
 
-                    if (task.taskDay === dayOfWeek || task.taskDay === 'all') {
+                    const isDayMatch = Array.isArray(task.taskDay) 
+                        ? task.taskDay.includes(dayOfWeek) || task.taskDay.includes('all')
+                        : task.taskDay === dayOfWeek || task.taskDay === 'all';
+
+                    if (isDayMatch) {
                         entriesForDay.push({
                             date: dStr,
                             dateFmt: dFmt,
@@ -315,6 +338,46 @@ app.post('/save-config', (req, res) => {
         console.error("Save Config Error:", e);
         res.status(500).json({ success: false, message: "Error saving config file." });
     }
+});
+
+app.post('/health-check', async (req, res) => {
+    const { projects } = req.body;
+    if (!projects || !Array.isArray(projects)) {
+        return res.status(400).json({ success: false, message: "Projects array is required." });
+    }
+
+    const results = [];
+    for (const project of projects) {
+        const { repoPath, projectName } = project;
+        const result = { projectName, repoPath, exists: false, isGit: false, hasChanges: false, error: null };
+
+        if (!repoPath) {
+            result.error = "Missing path";
+        } else if (!fs.existsSync(repoPath)) {
+            result.error = "Path does not exist";
+        } else {
+            result.exists = true;
+            const gitPath = path.join(repoPath, '.git');
+            if (!fs.existsSync(gitPath)) {
+                result.error = "Not a git repository";
+            } else {
+                result.isGit = true;
+                try {
+                    // Check for uncommitted changes
+                    const { stdout } = await execPromise('git status --porcelain', { cwd: repoPath });
+                    result.hasChanges = stdout.trim().length > 0;
+                    
+                    // Optional: check if remote is ahead (would require fetch, maybe too slow for health check)
+                    // For now, just path and basic git status
+                } catch (err) {
+                    result.error = `Git error: ${err.message}`;
+                }
+            }
+        }
+        results.push(result);
+    }
+
+    res.json({ success: true, data: results });
 });
 
 app.post('/generate-report', async (req, res) => {

@@ -134,6 +134,65 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmCallback = null;
     });
 
+    // Custom Dropdown Logic
+    const dropdown = document.getElementById('task-days-dropdown');
+    const selectedText = document.getElementById('task-days-selected');
+    const optionsContainer = dropdown.querySelector('.dropdown-options');
+    const hiddenSelect = document.getElementById('modal-taskDay');
+
+    selectedText.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle('active');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!dropdown.contains(e.target)) {
+            dropdown.classList.remove('active');
+        }
+    });
+
+    const updateSelectedText = () => {
+        const checked = Array.from(optionsContainer.querySelectorAll('input:checked'));
+        const values = checked.map(c => c.value);
+        
+        // Update hidden select for form submission Compatibility
+        Array.from(hiddenSelect.options).forEach(opt => opt.selected = false);
+        values.forEach(val => {
+            let opt = hiddenSelect.querySelector(`option[value="${val}"]`);
+            if (!opt) {
+                opt = document.createElement('option');
+                opt.value = val;
+                hiddenSelect.appendChild(opt);
+            }
+            opt.selected = true;
+        });
+
+        if (values.length === 0) {
+            selectedText.textContent = 'Select Days...';
+        } else if (values.includes('all')) {
+            selectedText.textContent = 'Daily (Mon-Fri)';
+        } else {
+            const labels = checked.map(c => c.parentElement.textContent.trim());
+            selectedText.textContent = labels.join(', ');
+        }
+    };
+
+    optionsContainer.querySelectorAll('input').forEach(input => {
+        input.addEventListener('change', updateSelectedText);
+    });
+
+    window.setDropdownValues = (values) => {
+        optionsContainer.querySelectorAll('input').forEach(input => {
+            input.checked = values.includes(input.value);
+        });
+        updateSelectedText();
+    };
+
+    window.resetDropdown = () => {
+        optionsContainer.querySelectorAll('input').forEach(input => input.checked = false);
+        updateSelectedText();
+    };
+
     // Close on overlay click
     confirmModal.addEventListener('click', (e) => {
         if (e.target === confirmModal) {
@@ -182,6 +241,7 @@ function updateAllTaskProjectDropdowns() {
 }
 
 let globalDefaultTasks = [];
+let globalLeaveDates = [];
 
 async function saveState() {
     const state = {
@@ -191,7 +251,8 @@ async function saveState() {
         since: document.getElementById('since').value,
         until: document.getElementById('until').value,
         defaultTasks: globalDefaultTasks,
-        projects: globalProjects
+        projects: globalProjects,
+        leaveDates: globalLeaveDates
     };
     
     // Primary: Local Storage
@@ -247,9 +308,11 @@ async function loadState() {
 
     globalProjects = state.projects || [];
     globalDefaultTasks = state.defaultTasks || [];
+    globalLeaveDates = state.leaveDates || [];
 
     renderProjectsTable();
     renderDefaultTasksTable();
+    renderLeaveChips();
     updateAllTaskProjectDropdowns();
 
     // If we recovered from server, ensure localStorage is also updated
@@ -270,6 +333,11 @@ function renderDefaultTasksTable() {
     }
 
     const dayMap = { '1': 'Mon', '2': 'Tue', '3': 'Wed', '4': 'Thu', '5': 'Fri', 'all': 'Daily' };
+    const getDaysText = (days) => {
+        if (!Array.isArray(days)) days = [days];
+        if (days.includes('all')) return 'Daily';
+        return days.map(d => dayMap[d] || d).join(', ');
+    };
     const typeLabels = {
         'normal': 'Normal',
         'meeting': '🏠 Meeting',
@@ -287,7 +355,7 @@ function renderDefaultTasksTable() {
                 <div style="font-weight: 600;">${task.taskName}</div>
                 <div style="font-size: 0.75rem; opacity: 0.5;">${task.taskRemarks || 'No default remarks'}</div>
             </td>
-            <td><span class="badge" style="background: rgba(255,255,255,0.05); color: var(--text-main); border-color: var(--border);">${dayMap[task.taskDay] || task.taskDay}</span></td>
+            <td><span class="badge" style="background: rgba(255,255,255,0.05); color: var(--text-main); border-color: var(--border);">${getDaysText(task.taskDay)}</span></td>
             <td>${task.taskProject || '<span style="opacity:0.3">Global</span>'}</td>
             <td>${typeLabels[task.taskType] || task.taskType}</td>
             <td style="text-align: right;">
@@ -323,13 +391,18 @@ function openTaskModal(index = -1) {
     
     updateAllTaskProjectDropdowns(); // Refresh projects
     form.reset();
+    resetDropdown(); // Reset custom dropdown
     document.getElementById('modal-task-index').value = index;
     
     if (index >= 0) {
         title.innerHTML = '<i class="fas fa-calendar-check"></i> Edit Recurring Task';
         const t = globalDefaultTasks[index];
         document.getElementById('modal-taskName').value = t.taskName;
-        document.getElementById('modal-taskDay').value = t.taskDay;
+        
+        // Handle custom dropdown
+        const savedDays = Array.isArray(t.taskDay) ? t.taskDay : [t.taskDay || '1'];
+        setDropdownValues(savedDays);
+
         document.getElementById('modal-taskType').value = t.taskType;
         document.getElementById('modal-taskProject').value = t.taskProject || '';
         document.getElementById('modal-taskRemarks').value = t.taskRemarks || '';
@@ -486,9 +559,13 @@ document.addEventListener('DOMContentLoaded', () => {
         taskForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const index = parseInt(document.getElementById('modal-task-index').value);
+            
+            const daySelect = document.getElementById('modal-taskDay');
+            const selectedDays = Array.from(daySelect.selectedOptions).map(opt => opt.value);
+
             const data = {
                 taskName: document.getElementById('modal-taskName').value,
-                taskDay: document.getElementById('modal-taskDay').value,
+                taskDay: selectedDays.length > 0 ? selectedDays : ['1'],
                 taskType: document.getElementById('modal-taskType').value,
                 taskProject: document.getElementById('modal-taskProject').value,
                 taskRemarks: document.getElementById('modal-taskRemarks').value,
@@ -541,7 +618,140 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const defaultsSearch = document.getElementById('defaults-search');
     if (defaultsSearch) defaultsSearch.addEventListener('input', filterDefaultTasksTable);
+
+    const healthBtn = document.getElementById('btn-health-check');
+    if (healthBtn) healthBtn.addEventListener('click', runHealthCheck);
+
+    const addLeaveBtn = document.getElementById('add-leave-btn');
+    if (addLeaveBtn) addLeaveBtn.addEventListener('click', addLeaveDate);
+
+    const rangeToggle = document.getElementById('leave-range-toggle');
+    if (rangeToggle) {
+        rangeToggle.addEventListener('change', (e) => {
+            const rangeMode = e.target.checked;
+            document.getElementById('leave-until-group').style.display = rangeMode ? 'block' : 'none';
+            document.getElementById('leave-date-start-label').textContent = rangeMode ? 'From' : 'Select Date';
+        });
+    }
 });
+
+function addLeaveDate() {
+    const startPicker = document.getElementById('leave-date-picker');
+    const untilPicker = document.getElementById('leave-date-until');
+    const isRange = document.getElementById('leave-range-toggle').checked;
+    
+    const startDate = startPicker.value;
+    const untilDate = untilPicker.value;
+    
+    if (!startDate) return;
+    
+    const newDates = [];
+    if (isRange && untilDate) {
+        let curr = new Date(startDate);
+        let end = new Date(untilDate);
+        if (end < curr) [curr, end] = [end, curr]; // Swap if user picked end before start
+        
+        while (curr <= end) {
+            const dStr = curr.toISOString().split('T')[0];
+            newDates.push(dStr);
+            curr.setDate(curr.getDate() + 1);
+        }
+    } else {
+        newDates.push(startDate);
+    }
+    
+    let added = false;
+    newDates.forEach(date => {
+        if (!globalLeaveDates.includes(date)) {
+            globalLeaveDates.push(date);
+            added = true;
+        }
+    });
+
+    if (added) {
+        globalLeaveDates.sort();
+        saveState();
+        renderLeaveChips();
+    }
+    
+    startPicker.value = '';
+    untilPicker.value = '';
+}
+
+function removeLeaveDate(date) {
+    globalLeaveDates = globalLeaveDates.filter(d => d !== date);
+    saveState();
+    renderLeaveChips();
+}
+
+function renderLeaveChips() {
+    const container = document.getElementById('leave-chips-container');
+    if (!container) return;
+    
+    if (globalLeaveDates.length === 0) {
+        container.innerHTML = '<span style="font-size: 0.8rem; opacity: 0.4;">No leave dates added...</span>';
+        return;
+    }
+    
+    container.innerHTML = globalLeaveDates.map(date => `
+        <div class="badge" style="background: rgba(251, 146, 60, 0.15); color: #fb923c; border-color: rgba(251, 146, 60, 0.3); display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.8rem;">
+            <span><i class="fas fa-calendar-day"></i> ${date}</span>
+            <i class="fas fa-times" onclick="removeLeaveDate('${date}')" style="cursor: pointer; opacity: 0.7; font-size: 0.7rem;"></i>
+        </div>
+    `).join('');
+}
+
+async function runHealthCheck() {
+    const modal = document.getElementById('health-modal');
+    const container = document.getElementById('health-results-container');
+    
+    modal.style.display = 'flex';
+    container.innerHTML = '<div style="text-align:center; padding: 3rem;"><div class="loader-ring" style="width:40px; height:40px; margin: 0 auto 1rem;"></div><p>Scanning all project directories...</p></div>';
+
+    try {
+        const response = await fetch('http://localhost:3001/health-check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projects: globalProjects })
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            let html = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">';
+            result.data.forEach(res => {
+                const statusColor = res.exists && res.isGit ? (res.error ? 'var(--error)' : 'var(--success)') : 'var(--error)';
+                const icon = res.exists && res.isGit ? (res.error ? 'fa-exclamation-triangle' : 'fa-check-circle') : 'fa-times-circle';
+                
+                html += `
+                    <div class="glass" style="padding: 1rem; border-radius: 12px; border: 1px solid ${statusColor}44; background: rgba(0,0,0,0.2);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <i class="fas ${icon}" style="color: ${statusColor}; font-size: 1.2rem;"></i>
+                                <div>
+                                    <div style="font-weight: 600; font-size: 1rem;">${res.projectName}</div>
+                                    <div style="font-size: 0.75rem; opacity: 0.5; font-family: monospace;">${res.repoPath}</div>
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 0.8rem; font-weight: 600; color: ${statusColor};">
+                                    ${!res.exists ? 'DIRECTORY MISSING' : (!res.isGit ? 'NOT A GIT REPO' : 'HEALTHY')}
+                                </div>
+                                ${res.hasChanges ? '<div style="font-size: 0.7rem; color: #ff9800;"><i class="fas fa-pencil-alt"></i> Uncommitted Changes</div>' : ''}
+                                ${res.error && res.isGit ? `<div style="font-size: 0.7rem; color: var(--error);">${res.error}</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = `<p style="color:var(--error); text-align:center; padding: 2rem;">Error: ${result.message}</p>`;
+        }
+    } catch (err) {
+        container.innerHTML = `<p style="color:var(--error); text-align:center; padding: 2rem;">Connection failed: ${err.message}</p>`;
+    }
+}
 
 function updateDefaultFilename() {
     const name = document.getElementById('employeeName').value.trim();
@@ -741,6 +951,7 @@ async function handleFormSubmit(e) {
     const data = {
         since, until, author: document.getElementById('author').value,
         projects,
+        leaveDates: globalLeaveDates,
         defaultTasks: globalDefaultTasks.map(t => {
             const proj = globalProjects.find(p => p.projectName === t.taskProject);
             return {
@@ -841,7 +1052,9 @@ function renderPreviewTable() {
                     </div>
                 </td>
                 <td>${row.projectName}</td>
-                <td>${row.supervisorName}</td>
+                <td>
+                    <input type="text" class="row-supervisor" value="${row.supervisorName}" style="width:100%; background:rgba(0,0,0,0.1); border:1px solid var(--border); color:inherit; border-radius:6px; padding:0.3rem 0.5rem; font-size:0.82rem; font-family:inherit;">
+                </td>
                 <td>
                     <select class="row-type" style="width:100%; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:inherit; border-radius:6px; padding:0.3rem 0.5rem; font-size:0.82rem; font-family:inherit; cursor:pointer;">
                         ${optionsHtml}
@@ -860,6 +1073,9 @@ function renderPreviewTable() {
                 currentPreviewData[index].taskType = e.target.value;
                 tr.className = `type-${e.target.value}`;
                 if (!currentPreviewData[index].included) tr.classList.add('row-excluded');
+            });
+            tr.querySelector('.row-supervisor').addEventListener('input', (e) => {
+                currentPreviewData[index].supervisorName = e.target.value;
             });
             const remarksArea = tr.querySelector('.row-remarks');
             const autoGrow = (el) => {

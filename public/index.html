@@ -212,8 +212,8 @@
                                 </div>
                             </div>
                         </div>
-                        <button type="submit" class="btn-primary animate-shine"
-                            style="width:100%; margin-top: 1rem; padding: 1.2rem; font-size: 1.2rem;">
+                        <button type="submit" class="btn-primary full-width animate-shine"
+                            style="padding: 1.2rem; font-size: 1.2rem;">
                             <i class="fas fa-rocket"></i> Generate Progress Report Now
                         </button>
                     </form>
@@ -226,10 +226,16 @@
                             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
                             <h3 style="margin:0; border:none; padding:0;"><i class="fas fa-folder-tree"></i> Project
                                 Management</h3>
-                            <button type="button" id="open-add-project-modal" class="btn-primary"
-                                style="margin-top:0; padding: 0.6rem 1.2rem; font-size: 0.9rem;">
-                                <i class="fas fa-plus"></i> Add Project
-                            </button>
+                            <div style="display: flex; gap: 0.8rem;">
+                                <button type="button" id="btn-health-check" class="btn-secondary"
+                                    style="margin-top:0; padding: 0.6rem 1.2rem; font-size: 0.9rem; border-color: var(--primary-glow);">
+                                    <i class="fas fa-heartbeat"></i> Health Check
+                                </button>
+                                <button type="button" id="open-add-project-modal" class="btn-primary"
+                                    style="margin-top:0; padding: 0.6rem 1.2rem; font-size: 0.9rem;">
+                                    <i class="fas fa-plus"></i> Add Project
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Project Search Bar -->
@@ -272,6 +278,45 @@
                                 style="margin-top:0; padding: 0.6rem 1.2rem; font-size: 0.9rem;">
                                 <i class="fas fa-plus"></i> Add Default Task
                             </button>
+                        </div>
+
+                        <!-- Leave Dates Management -->
+                        <div class="glass"
+                            style="padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 2rem; background: rgba(var(--primary-rgb), 0.05);">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                <h4 style="margin: 0; color: var(--primary);"><i class="fas fa-calendar-times"></i>
+                                    Leave / Absence Manager</h4>
+                                <label class="switch-container" style="margin: 0; transform: scale(0.85);">
+                                    <div class="switch">
+                                        <input type="checkbox" id="leave-range-toggle">
+                                        <span class="slider"></span>
+                                    </div>
+                                    <span class="switch-label">Range Mode</span>
+                                </label>
+                            </div>
+                            <p style="font-size: 0.8rem; opacity: 0.7; margin-bottom: 1rem;">Select single dates or a
+                                date range you were on leave. These will be automatically marked as "Leave".</p>
+                            <div style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+                                <div class="input-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+                                    <label id="leave-date-start-label">Select Date</label>
+                                    <input type="date" id="leave-date-picker">
+                                </div>
+                                <div id="leave-until-group" class="input-group"
+                                    style="margin-bottom: 0; flex: 1; min-width: 150px; display: none;">
+                                    <label>Until</label>
+                                    <input type="date" id="leave-date-until">
+                                </div>
+                                <button type="button" id="add-leave-btn" class="btn-primary"
+                                    style="margin-top: 0; height: 42px;">
+                                    <i class="fas fa-plus"></i> Add Entry
+                                </button>
+                            </div>
+                            <div id="leave-chips-container"
+                                style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.5rem; max-height: 150px; overflow-y: auto;">
+                                <!-- Leave chips will be injected here -->
+                                <span style="font-size: 0.8rem; opacity: 0.4;">No leave dates added...</span>
+                            </div>
                         </div>
 
                         <!-- Defaults Search Bar -->
@@ -398,15 +443,19 @@
                         <input type="text" id="modal-taskName" placeholder="e.g., Weekly Meeting" required>
                     </div>
                     <div class="input-group">
-                        <label>Day of Week</label>
-                        <select id="modal-taskDay">
-                            <option value="1">Monday</option>
-                            <option value="2">Tuesday</option>
-                            <option value="3">Wednesday</option>
-                            <option value="4">Thursday</option>
-                            <option value="5">Friday</option>
-                            <option value="all">Everyday</option>
-                        </select>
+                        <label>Days of Week</label>
+                        <div class="custom-dropdown" id="task-days-dropdown">
+                            <div class="dropdown-selected" id="task-days-selected">Select Days...</div>
+                            <div class="dropdown-options glass">
+                                <label><input type="checkbox" value="all"> Everyday (Mon-Fri)</label>
+                                <label><input type="checkbox" value="1"> Monday</label>
+                                <label><input type="checkbox" value="2"> Tuesday</label>
+                                <label><input type="checkbox" value="3"> Wednesday</label>
+                                <label><input type="checkbox" value="4"> Thursday</label>
+                                <label><input type="checkbox" value="5"> Friday</label>
+                            </div>
+                        </div>
+                        <select id="modal-taskDay" multiple style="display: none;"></select>
                     </div>
                 </div>
 
@@ -514,6 +563,31 @@
                 has been successfully generated and saved to your Downloads folder.</p>
             <button type="button" class="btn-primary animate-shine" style="width: 100%;"
                 onclick="document.getElementById('success-modal').style.display='none'">Awesome!</button>
+        </div>
+    </div>
+
+    <!-- Health Check Modal -->
+    <div id="health-modal" class="modal-overlay">
+        <div class="modal-content glass animate-scale-up" style="max-width: 800px; width: 90%;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem;">
+                <h3 style="margin: 0; color: var(--primary); font-size: 1.25rem;">
+                    <i class="fas fa-stethoscope"></i> Repository Health Check
+                </h3>
+                <button type="button" class="close-modal"
+                    onclick="document.getElementById('health-modal').style.display='none'">&times;</button>
+            </div>
+
+            <div id="health-results-container" style="max-height: 400px; overflow-y: auto;">
+                <!-- Results will be injected here -->
+                <p style="text-align: center; padding: 2rem; opacity: 0.5;">Scanning repositories...</p>
+            </div>
+
+            <div
+                style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+                <button type="button" class="btn-primary"
+                    onclick="document.getElementById('health-modal').style.display='none'">Done</button>
+            </div>
         </div>
     </div>
 
@@ -821,78 +895,54 @@
                     <i class="fas fa-rocket" style="color: white; font-size: 1.5rem;"></i>
                 </div>
                 <h2
-                    style="margin-bottom: 0.5rem; background: var(--gradient-text); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
-                    What's New in V2.1?</h2>
-                <p style="color: var(--text-muted); font-size: 0.9rem;">Intelligence & Automation Elite Update
+                    style="margin-bottom: 0.5rem; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+                    What's New in V2.5?</h2>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">The "Ultimate Flow" Update
                 </p>
             </div>
 
             <div style="margin-bottom: 2.5rem;">
-                <!-- Point 1: Holiday Names -->
+                <!-- New Feature: Leave Automation -->
                 <div style="display: flex; gap: 1rem; margin-bottom: 1.2rem;">
-                    <div style="color: var(--primary); flex-shrink: 0;"><i class="fas fa-calendar-check fa-lg"></i>
-                    </div>
+                    <div style="color: #fb923c; flex-shrink: 0;"><i class="fas fa-calendar-times fa-lg"></i></div>
                     <div>
-                        <h4 style="margin-bottom: 0.2rem;">Intelligent Holiday Names</h4>
-                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">No more
-                            generic
-                            "Holiday" labels. Reports now fetch official names like <b>Eid al-Fitr</b> live from
-                            the
-                            cloud.</p>
+                        <h4 style="margin-bottom: 0.2rem;">🌴 Smart Leave Automation</h4>
+                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">New **Leave Range
+                            Manager** allows you to block out vacation dates. Recurring tasks are automatically
+                            suppressed, and "On Leave" entries are added for you.</p>
                     </div>
                 </div>
 
-                <!-- Point 2: Excel Links -->
+                <!-- New Feature: Health Check -->
                 <div style="display: flex; gap: 1rem; margin-bottom: 1.2rem;">
-                    <div style="color: #4CAF50; flex-shrink: 0;"><i class="fas fa-link fa-lg"></i></div>
+                    <div style="color: #10b981; flex-shrink: 0;"><i class="fas fa-heartbeat fa-lg"></i></div>
                     <div>
-                        <h4 style="margin-bottom: 0.2rem;">Supercharged Excel Links</h4>
-                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">Exported
-                            files now
-                            feature <b>blue clickable hyperlinks</b> for both tasks and commits. Verification is
-                            just
-                            one click away.</p>
+                        <h4 style="margin-bottom: 0.2rem;">🩺 Repository Health Pulse</h4>
+                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">Instant repository
+                            scanning! Detect missing folders, invalid Git paths, and uncommitted drafts before you
+                            generate your report.</p>
                     </div>
                 </div>
 
-                <!-- Point 3: Deletion Integrity -->
+                <!-- New Feature: Multi-Day Tasks -->
                 <div style="display: flex; gap: 1rem; margin-bottom: 1.2rem;">
-                    <div style="color: var(--error); flex-shrink: 0;"><i class="fas fa-trash-alt fa-lg"></i>
-                    </div>
+                    <div style="color: var(--primary); flex-shrink: 0;"><i class="fas fa-layer-group fa-lg"></i></div>
                     <div>
-                        <h4 style="margin-bottom: 0.2rem;">Accurate Deletion Guards</h4>
-                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">No more
-                            duplicate
-                            IDs. The "x" or delete confirmation modal now accurately tracks the <b>real-time
-                                name</b> of
-                            the project or task you're removing.</p>
+                        <h4 style="margin-bottom: 0.2rem;">🗓️ Multi-Day Tasking & UI 2.0</h4>
+                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">Select multiple days
+                            for any task via the new **Custom Dropdown**. Plus, premium button animations and refined
+                            supervisor auto-assignment.</p>
                     </div>
                 </div>
 
-                <!-- Point 4: Modal UX Improvement -->
-                <div style="display: flex; gap: 1rem; margin-bottom: 1.2rem;">
-                    <div style="color: #00BCD4; flex-shrink: 0;"><i class="fas fa-window-close fa-lg"></i></div>
-                    <div>
-                        <h4 style="margin-bottom: 0.2rem;">Seamless Modal UX</h4>
-                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">Every modal
-                            now
-                            features a <b>close button</b> and supports <b>click-outside-to-close</b>
-                            functionality on
-                            the overlay for much faster navigation.
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Point 5: Integrity Guard -->
+                <!-- Point 3: Excel Links -->
                 <div style="display: flex; gap: 1rem;">
-                    <div style="color: #FFC107; flex-shrink: 0;"><i class="fas fa-shield-alt fa-lg"></i></div>
+                    <div style="color: #4CAF50; flex-shrink: 0;"><i class="fas fa-file-excel fa-lg"></i></div>
                     <div>
-                        <h4 style="margin-bottom: 0.2rem;">Integrity Guard (Empty Days)</h4>
-                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">Empty
-                            workdays are
-                            now flagged in **Yellow** in the preview. Never submit a blank day or miss a commit
-                            again!
-                        </p>
+                        <h4 style="margin-bottom: 0.2rem;">Clean Excel Export</h4>
+                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.4;">Final reports are now
+                            cleaner than ever with automated supervisor mapping and smart holiday labeling (e.g., Eid
+                            al-Fitr).</p>
                     </div>
                 </div>
             </div>
