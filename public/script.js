@@ -92,6 +92,8 @@ function loadState() {
         document.getElementById('employeeName').value = state.employeeName || '';
         document.getElementById('employeeId').value = state.employeeId || '';
         document.getElementById('author').value = state.author || '';
+        const author2Input = document.getElementById('author2');
+        if (author2Input) author2Input.value = state.author2 || '';
         document.getElementById('since').value = state.since || '';
         document.getElementById('until').value = state.until || '';
     }
@@ -355,6 +357,7 @@ async function saveState() {
         employeeName: document.getElementById('employeeName').value,
         employeeId: document.getElementById('employeeId').value,
         author: document.getElementById('author').value,
+        author2: document.getElementById('author2') ? document.getElementById('author2').value : '',
         since: document.getElementById('since').value,
         until: document.getElementById('until').value,
         defaultTasks: globalDefaultTasks,
@@ -410,6 +413,8 @@ async function loadState() {
     document.getElementById('employeeName').value = state.employeeName || '';
     document.getElementById('employeeId').value = state.employeeId || '';
     document.getElementById('author').value = state.author || '';
+    const author2Input = document.getElementById('author2');
+    if (author2Input) author2Input.value = state.author2 || '';
     document.getElementById('since').value = state.since || '';
     document.getElementById('until').value = state.until || '';
 
@@ -898,7 +903,7 @@ const oldAddTaskBtn = document.getElementById('add-default-task');
 if (oldAddTaskBtn) oldAddTaskBtn.style.display = 'none';
 
 // Auto-save global inputs
-['employeeName', 'employeeId', 'author', 'since', 'until', 'holidayDates'].forEach(id => {
+['employeeName', 'employeeId', 'author', 'author2', 'since', 'until', 'holidayDates'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', saveState);
 });
@@ -1055,8 +1060,12 @@ async function handleFormSubmit(e) {
         return;
     }
 
+    const authorOne = document.getElementById('author').value.trim();
+    const authorTwo = document.getElementById('author2') ? document.getElementById('author2').value.trim() : '';
+    const authors = [authorOne, authorTwo].filter(Boolean);
+
     const data = {
-        since, until, author: document.getElementById('author').value,
+        since, until, author: authorOne, authors,
         projects,
         leaveDates: globalLeaveDates,
         defaultTasks: globalDefaultTasks.map(t => {

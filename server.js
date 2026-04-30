@@ -104,13 +104,18 @@ const formatDate = (dateStr) => {
 };
 
 async function getLogData(params) {
-    const { since, until, author, projects, defaultTasks } = params;
-    
-    let authorFilterStr = '';
-    if (author) {
-        authorFilterStr = author.split(' ')[0];
-    }
-    const authorFilter = authorFilterStr ? `--author="${authorFilterStr}"` : '';
+    const { since, until, author, authors, projects, defaultTasks } = params;
+
+    const sanitizeAuthorValue = (value = '') => value.trim().split(/\s+/)[0];
+    const authorCandidates = Array.isArray(authors) && authors.length > 0 ? authors : (author ? [author] : []);
+    const normalizedAuthors = [...new Set(
+        authorCandidates
+            .map(sanitizeAuthorValue)
+            .filter(Boolean)
+    )];
+    // Run author scans one-by-one, then merge results.
+    // This avoids regex edge cases when multiple emails are passed in one git command.
+    const authorFilters = normalizedAuthors.length > 0 ? normalizedAuthors : [''];
 
     let sinceFilter = '';
     if (since) {
@@ -127,9 +132,9 @@ async function getLogData(params) {
         untilFilter = `--until="${nextDay}"`;
     }
 
-    const cmd = `git log --all ${authorFilter} --no-merges --pretty=format:"%ad|%s|%H" --date=short ${sinceFilter} ${untilFilter}`;
     const allCommitsByDate = {}; 
     const activeProjectNames = new Set();
+    const seenCommitKeys = new Set();
 
     for (const project of projects) {
         const { repoPath, projectName, supervisorName, baseUrl } = project;
@@ -142,32 +147,45 @@ async function getLogData(params) {
             await execPromise('git fetch --all', { cwd: repoPath });
         } catch (fetchErr) {}
 
-        const { stdout } = await execPromise(cmd, { cwd: repoPath, maxBuffer: 1024 * 1024 * 10 });
-        const lines = stdout.trim().split('\n');
-        if (!lines || (lines.length === 1 && lines[0] === '')) continue;
+        let projectHasMatchedCommits = false;
 
-        activeProjectNames.add(projectName);
+        for (const singleAuthor of authorFilters) {
+            const authorFilter = singleAuthor ? `--author="${singleAuthor}"` : '';
+            const cmd = `git log --all ${authorFilter} --no-merges --pretty=format:"%ad|%s|%H" --date=short ${sinceFilter} ${untilFilter}`;
+            const { stdout } = await execPromise(cmd, { cwd: repoPath, maxBuffer: 1024 * 1024 * 10 });
+            const lines = stdout.trim().split('\n');
+            if (!lines || (lines.length === 1 && lines[0] === '')) continue;
 
-        lines.forEach(line => {
-            const parts = line.split('|');
-            if (parts.length < 3) return;
-            const dateStr = parts[0];
-            const subject = parts[1];
-            const hash = parts[2];
-            
-            if (!allCommitsByDate[dateStr]) allCommitsByDate[dateStr] = [];
-            allCommitsByDate[dateStr].push({
-                subject,
-                hash,
-                projectName,
-                supervisorName,
-                taskType: 'normal',
-                repoPlatform: project.repoPlatform,
-                repoWorkspace: project.repoWorkspace,
-                repoName: project.repoName,
-                link: baseUrl ? `${baseUrl}${hash}` : ''
+            lines.forEach(line => {
+                const parts = line.split('|');
+                if (parts.length < 3) return;
+                const dateStr = parts[0];
+                const subject = parts[1];
+                const hash = parts[2];
+                const commitKey = `${projectName}|${hash}`;
+
+                if (seenCommitKeys.has(commitKey)) return;
+                seenCommitKeys.add(commitKey);
+                projectHasMatchedCommits = true;
+
+                if (!allCommitsByDate[dateStr]) allCommitsByDate[dateStr] = [];
+                allCommitsByDate[dateStr].push({
+                    subject,
+                    hash,
+                    projectName,
+                    supervisorName,
+                    taskType: 'normal',
+                    repoPlatform: project.repoPlatform,
+                    repoWorkspace: project.repoWorkspace,
+                    repoName: project.repoName,
+                    link: baseUrl ? `${baseUrl}${hash}` : ''
+                });
             });
-        });
+        }
+
+        if (projectHasMatchedCommits) {
+            activeProjectNames.add(projectName);
+        }
     }
 
     const sortedDates = Object.keys(allCommitsByDate).sort();
