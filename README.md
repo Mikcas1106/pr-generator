@@ -56,10 +56,26 @@ Click **Export to Excel**. Your professional report is saved with a standardized
 git clone https://github.com/Mikcas1106/pr-generator.git
 cd pr-generator
 npm install
+npm run desktop
+```
+
+This opens a desktop app window directly.
+
+For browser-only mode, run:
+
+```bash
 npm run dev
 ```
 
-The application will be available at: **http://localhost:3001**
+Then open: **http://localhost:3001**
+
+To build a Windows executable desktop app:
+
+```bash
+npm run build:exe
+```
+
+The generated `.exe` installer will be in the `release` folder.
 
 ---
 

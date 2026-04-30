@@ -10,11 +10,16 @@ const cors = require('cors');
 const ExcelJS = require('exceljs');
 
 const app = express();
-const PORT = 3001;
+const PORT = Number(process.env.PORT) || 3001;
+const PUBLIC_DIR = path.join(__dirname, 'public');
 
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static('public'));
+app.use(express.static(PUBLIC_DIR));
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
+});
 
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 
