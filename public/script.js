@@ -381,33 +381,28 @@ async function saveState() {
 }
 
 async function loadState() {
-    // 1. Load from Primary (Local Storage) for immediate UI response
+    // 1. Pre-fill UI immediately from localStorage (fast render, avoids blank flash)
     const localSaved = localStorage.getItem('pr_generator_state');
     let state = localSaved ? JSON.parse(localSaved) : null;
-    let serverDataUsed = false;
 
-    // 2. Fetch from Secondary (Server Mirror) for recovery/persistence
+    // 2. Always sync from config.json on startup — server is the source of truth
     try {
         const resp = await fetch('http://localhost:3001/get-config');
         const result = await resp.json();
-        
+
         if (result.success && result.data) {
-            // If Local Storage is empty (new browser/cache cleared), use server data
-            if (!state) {
-                state = result.data;
-                serverDataUsed = true;
-                log("Data recovered from server backup.", "success");
-            }
-        } else if (state) {
-            // First run migration: Local exists but Server doesn't
-            // Sync local data to server immediately
-            saveState();
+            // Server data always wins — overwrite localStorage with fresh config.json
+            state = result.data;
+            localStorage.setItem('pr_generator_state', JSON.stringify(state));
+            log("Config loaded from config.json ✓", "success");
+        } else if (!state) {
+            log("No config found. Please configure your settings.", "error");
+            return;
         }
     } catch (e) {
-        console.error("Server load failed:", e);
+        console.error("[Config] Server sync failed, falling back to localStorage:", e);
+        if (!state) return; // Nothing to work with
     }
-
-    if (!state) return;
 
     // Populate UI
     document.getElementById('employeeName').value = state.employeeName || '';
@@ -426,11 +421,6 @@ async function loadState() {
     renderDefaultTasksTable();
     renderLeaveChips();
     updateAllTaskProjectDropdowns();
-
-    // If we recovered from server, ensure localStorage is also updated
-    if (serverDataUsed) {
-        localStorage.setItem('pr_generator_state', JSON.stringify(state));
-    }
 }
 
 function renderDefaultTasksTable() {
