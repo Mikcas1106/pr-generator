@@ -445,7 +445,14 @@ function renderDefaultTasksTable() {
     }
 
     const dayMap = { '1': 'Mon', '2': 'Tue', '3': 'Wed', '4': 'Thu', '5': 'Fri', 'all': 'Daily' };
-    const getDaysText = (days) => {
+    const getDaysText = (task) => {
+        if (task.taskDateMode) {
+            const dates = task.taskSpecificDates || (task.taskSpecificDate ? [task.taskSpecificDate] : []);
+            if (dates.length === 0) return '<span style="opacity:0.3">No dates</span>';
+            if (dates.length === 1) return `<i class="fas fa-calendar-day"></i> ${dates[0]}`;
+            return `<i class="fas fa-calendar-day"></i> ${dates.length} Dates`;
+        }
+        let days = task.taskDay;
         if (!Array.isArray(days)) days = [days];
         if (days.includes('all')) return 'Daily';
         return days.map(d => dayMap[d] || d).join(', ');
@@ -467,13 +474,16 @@ function renderDefaultTasksTable() {
                 <div style="font-weight: 600;">${task.taskName}</div>
                 <div style="font-size: 0.75rem; opacity: 0.5;">${task.taskRemarks || 'No default remarks'}</div>
             </td>
-            <td><span class="badge" style="background: rgba(255,255,255,0.05); color: var(--text-main); border-color: var(--border);">${getDaysText(task.taskDay)}</span></td>
+            <td><span class="badge" style="background: rgba(255,255,255,0.05); color: var(--text-main); border-color: var(--border);">${getDaysText(task)}</span></td>
             <td>${task.taskProject || '<span style="opacity:0.3">Global</span>'}</td>
             <td>${typeLabels[task.taskType] || task.taskType}</td>
             <td style="text-align: right;">
-                <span class="badge" style="background: ${isActive ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'}; color: ${isActive ? 'var(--success)' : 'var(--error)'}; border-color: ${isActive ? 'var(--success)' : 'var(--error)'};">
-                    ${isActive ? 'Active' : 'Disabled'}
-                </span>
+                <label class="switch-container" style="margin: 0; transform: scale(0.85); display: inline-flex;">
+                    <div class="switch">
+                        <input type="checkbox" ${isActive ? 'checked' : ''} onchange="toggleTaskEnabled(${index})">
+                        <span class="slider"></span>
+                    </div>
+                </label>
             </td>
             <td>
                 <div class="action-btns">
@@ -487,6 +497,14 @@ function renderDefaultTasksTable() {
     filterDefaultTasksTable();
 }
 
+function toggleTaskEnabled(index) {
+    const task = globalDefaultTasks[index];
+    task.taskEnabled = !task.taskEnabled;
+    saveState();
+    log(`Task "${task.taskName}" ${task.taskEnabled ? 'enabled' : 'disabled'}.`, 'success');
+    renderDefaultTasksTable();
+}
+
 function filterDefaultTasksTable() {
     const query = (document.getElementById('defaults-search')?.value || '').toLowerCase().trim();
     document.querySelectorAll('#default-tasks-table-body tr').forEach(tr => {
@@ -494,6 +512,35 @@ function filterDefaultTasksTable() {
         const text = tr.innerText.toLowerCase();
         tr.style.display = text.includes(query) ? '' : 'none';
     });
+}
+
+let currentTaskDates = [];
+
+function renderTaskDateChips() {
+    const container = document.getElementById('selected-dates-container');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    if (currentTaskDates.length === 0) {
+        container.innerHTML = '<span style="opacity:0.3; font-size:0.85rem; margin: auto;">No dates added yet</span>';
+        return;
+    }
+
+    currentTaskDates.sort().forEach((date, idx) => {
+        const chip = document.createElement('div');
+        chip.className = 'badge';
+        chip.style.cssText = 'background: rgba(255,255,255,0.05); border-color: var(--border); display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.75rem;';
+        chip.innerHTML = `
+            <span>${date}</span>
+            <i class="fas fa-times" style="cursor:pointer; opacity:0.5;" onclick="removeTaskDate(${idx})"></i>
+        `;
+        container.appendChild(chip);
+    });
+}
+
+function removeTaskDate(idx) {
+    currentTaskDates.splice(idx, 1);
+    renderTaskDateChips();
 }
 
 function openTaskModal(index = -1) {
@@ -505,12 +552,35 @@ function openTaskModal(index = -1) {
     form.reset();
     resetDropdown(); // Reset custom dropdown
     document.getElementById('modal-task-index').value = index;
+    currentTaskDates = [];
     
     if (index >= 0) {
         title.innerHTML = '<i class="fas fa-calendar-check"></i> Edit Recurring Task';
         const t = globalDefaultTasks[index];
         document.getElementById('modal-taskName').value = t.taskName;
         
+        // Handle mode
+        const isDateMode = t.taskDateMode === true;
+        document.getElementById('modal-taskDateMode').checked = isDateMode;
+        document.getElementById('task-days-group').style.display = isDateMode ? 'none' : 'block';
+        document.getElementById('task-date-group').style.display = isDateMode ? 'block' : 'none';
+        
+        // Reset range mode UI
+        const rangeToggle = document.getElementById('modal-taskRangeMode');
+        if (rangeToggle) {
+            rangeToggle.checked = false;
+            document.getElementById('task-modal-until-group').style.display = 'none';
+            document.getElementById('task-date-start-label').textContent = 'Select Date';
+        }
+
+        // Handle dates
+        if (t.taskSpecificDates && Array.isArray(t.taskSpecificDates)) {
+            currentTaskDates = [...t.taskSpecificDates];
+        } else if (t.taskSpecificDate) {
+            currentTaskDates = [t.taskSpecificDate];
+        }
+        renderTaskDateChips();
+
         // Handle custom dropdown
         const savedDays = Array.isArray(t.taskDay) ? t.taskDay : [t.taskDay || '1'];
         setDropdownValues(savedDays);
@@ -522,6 +592,19 @@ function openTaskModal(index = -1) {
         document.getElementById('modal-taskOnlyIfProjectActive').checked = t.taskOnlyIfProjectActive === true;
     } else {
         title.innerHTML = '<i class="fas fa-calendar-plus"></i> Add New Recurring Task';
+        document.getElementById('modal-taskDateMode').checked = false;
+        document.getElementById('task-days-group').style.display = 'block';
+        document.getElementById('task-date-group').style.display = 'none';
+        
+        // Reset range mode UI
+        const rangeToggle = document.getElementById('modal-taskRangeMode');
+        if (rangeToggle) {
+            rangeToggle.checked = false;
+            document.getElementById('task-modal-until-group').style.display = 'none';
+            document.getElementById('task-date-start-label').textContent = 'Select Date';
+        }
+        
+        renderTaskDateChips();
     }
     
     modal.style.display = 'flex';
@@ -563,9 +646,12 @@ function renderProjectsTable() {
             <td><i class="fab fa-${proj.repoPlatform}"></i> ${proj.repoPlatform.charAt(0).toUpperCase() + proj.repoPlatform.slice(1)}</td>
             <td>${proj.repoWorkspace || 'N/A'} / ${proj.repoName || 'N/A'}</td>
             <td style="text-align: right;">
-                <span class="badge" style="background: ${isActive ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'}; color: ${isActive ? 'var(--success)' : 'var(--error)'}; border-color: ${isActive ? 'var(--success)' : 'var(--error)'};">
-                    ${isActive ? 'Active' : 'Disabled'}
-                </span>
+                <label class="switch-container" style="margin: 0; transform: scale(0.85); display: inline-flex;">
+                    <div class="switch">
+                        <input type="checkbox" ${isActive ? 'checked' : ''} onchange="toggleProjectEnabled(${index})">
+                        <span class="slider"></span>
+                    </div>
+                </label>
             </td>
             <td>
                 <div class="action-btns">
@@ -577,6 +663,15 @@ function renderProjectsTable() {
         container.appendChild(tr);
     });
     filterProjectsTable();
+}
+
+function toggleProjectEnabled(index) {
+    const proj = globalProjects[index];
+    proj.projectEnabled = !proj.projectEnabled;
+    saveState();
+    log(`Project "${proj.projectName}" ${proj.projectEnabled ? 'enabled' : 'disabled'}.`, 'success');
+    renderProjectsTable();
+    updateAllTaskProjectDropdowns();
 }
 
 function filterProjectsTable() {
@@ -668,16 +763,97 @@ document.addEventListener('DOMContentLoaded', () => {
     // Task modal submit handler
     const taskForm = document.getElementById('task-modal-form');
     if (taskForm) {
+        // Toggle specific date / days visibility
+        const taskDateModeToggle = document.getElementById('modal-taskDateMode');
+        if (taskDateModeToggle) {
+            taskDateModeToggle.addEventListener('change', () => {
+                const isDateMode = taskDateModeToggle.checked;
+                document.getElementById('task-days-group').style.display = isDateMode ? 'none' : 'block';
+                document.getElementById('task-date-group').style.display = isDateMode ? 'block' : 'none';
+            });
+        }
+
+        // Task Range Mode toggle
+        const taskRangeToggle = document.getElementById('modal-taskRangeMode');
+        if (taskRangeToggle) {
+            taskRangeToggle.addEventListener('change', (e) => {
+                const rangeMode = e.target.checked;
+                document.getElementById('task-modal-until-group').style.display = rangeMode ? 'block' : 'none';
+                document.getElementById('task-date-start-label').textContent = rangeMode ? 'From' : 'Select Date';
+            });
+        }
+
+        // Add specific date button logic (Single or Range)
+        const addDateBtn = document.getElementById('add-specific-date-btn');
+        if (addDateBtn) {
+            addDateBtn.addEventListener('click', () => {
+                const startInput = document.getElementById('modal-taskSpecificDateInput');
+                const untilInput = document.getElementById('modal-taskSpecificDateUntil');
+                const isRange = document.getElementById('modal-taskRangeMode').checked;
+                
+                if (!startInput.value) {
+                    log('Please select a date first', 'error');
+                    return;
+                }
+
+                let datesToAdd = [];
+                if (isRange) {
+                    if (!untilInput.value) {
+                        log('Please select an end date', 'error');
+                        return;
+                    }
+                    const start = new Date(startInput.value);
+                    const end = new Date(untilInput.value);
+                    if (end < start) {
+                        log('End date cannot be before start date', 'error');
+                        return;
+                    }
+                    let curr = new Date(start);
+                    while (curr <= end) {
+                        datesToAdd.push(curr.toISOString().split('T')[0]);
+                        curr.setDate(curr.getDate() + 1);
+                    }
+                } else {
+                    datesToAdd.push(startInput.value);
+                }
+
+                let addedCount = 0;
+                datesToAdd.forEach(d => {
+                    if (!currentTaskDates.includes(d)) {
+                        currentTaskDates.push(d);
+                        addedCount++;
+                    }
+                });
+
+                if (addedCount > 0) {
+                    renderTaskDateChips();
+                    log(`${addedCount} date(s) added`, 'success');
+                } else {
+                    log('No new dates were added', 'warning');
+                }
+            });
+        }
+
         taskForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const index = parseInt(document.getElementById('modal-task-index').value);
             
+            const isDateMode = document.getElementById('modal-taskDateMode').checked;
+
+            // Validation
+            if (isDateMode && currentTaskDates.length === 0) {
+                log('Please add at least one specific date for this task.', 'error');
+                return;
+            }
+
             const daySelect = document.getElementById('modal-taskDay');
             const selectedDays = Array.from(daySelect.selectedOptions).map(opt => opt.value);
 
             const data = {
                 taskName: document.getElementById('modal-taskName').value,
                 taskDay: selectedDays.length > 0 ? selectedDays : ['1'],
+                taskDateMode: isDateMode,
+                taskSpecificDates: [...currentTaskDates],
                 taskType: document.getElementById('modal-taskType').value,
                 taskProject: document.getElementById('modal-taskProject').value,
                 taskRemarks: document.getElementById('modal-taskRemarks').value,
@@ -743,6 +919,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const rangeMode = e.target.checked;
             document.getElementById('leave-until-group').style.display = rangeMode ? 'block' : 'none';
             document.getElementById('leave-date-start-label').textContent = rangeMode ? 'From' : 'Select Date';
+        });
+    }
+
+    const taskDateModeToggle = document.getElementById('modal-taskDateMode');
+    if (taskDateModeToggle) {
+        taskDateModeToggle.addEventListener('change', (e) => {
+            const isDateMode = e.target.checked;
+            document.getElementById('task-days-group').style.display = isDateMode ? 'none' : 'block';
+            document.getElementById('task-date-group').style.display = isDateMode ? 'block' : 'none';
         });
     }
 });
@@ -1154,7 +1339,12 @@ function renderPreviewTable() {
 
             tr.innerHTML = `
                 <td style="text-align: center; vertical-align: middle;">
-                    <input type="checkbox" class="row-include" ${row.included ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+                    <label class="switch-container" style="margin: 0; transform: scale(0.8); display: inline-flex; justify-content: center;">
+                        <div class="switch">
+                            <input type="checkbox" class="row-include" ${row.included ? 'checked' : ''}>
+                            <span class="slider"></span>
+                        </div>
+                    </label>
                 </td>
                 <td>${row.dateFmt}</td>
                 <td>

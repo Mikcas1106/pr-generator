@@ -284,11 +284,20 @@ async function getLogData(params) {
                         return; // Skip this task because project is inactive
                     }
 
-                    const isDayMatch = Array.isArray(task.taskDay) 
-                        ? task.taskDay.includes(dayOfWeek) || task.taskDay.includes('all')
-                        : task.taskDay === dayOfWeek || task.taskDay === 'all';
+                    let shouldInclude = false;
+                    
+                    if (task.taskDateMode) {
+                        // Specific Date Mode (supports multiple dates)
+                        const dates = task.taskSpecificDates || (task.taskSpecificDate ? [task.taskSpecificDate] : []);
+                        shouldInclude = dates.includes(dStr);
+                    } else {
+                        // Recurring Days Mode
+                        shouldInclude = Array.isArray(task.taskDay) 
+                            ? task.taskDay.includes(dayOfWeek) || task.taskDay.includes('all')
+                            : task.taskDay === dayOfWeek || task.taskDay === 'all';
+                    }
 
-                    if (isDayMatch) {
+                    if (shouldInclude) {
                         entriesForDay.push({
                             date: dStr,
                             dateFmt: dFmt,
